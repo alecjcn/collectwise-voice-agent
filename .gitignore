@@ -203,6 +203,9 @@ ehthumbs.db
 # Build info and cache
 *.tsbuildinfo
 
+# Local SQLite database
+data/
+
 # Claude Code
 .claude/settings.local.json
 .claude/worktrees/

@@ -73,6 +73,11 @@ USER appuser
 # Set Node.js to production mode
 ENV NODE_ENV=production
 
+# The container filesystem outside /tmp is not writable by appuser; keep the
+# (ephemeral, seeded-at-startup) SQLite DB and call traces in /tmp.
+ENV DB_PATH=/tmp/data/collectwise.db
+ENV TRACE_DIR=/tmp/logs
+
 # Run the application
 # The "start" command tells the worker to connect to LiveKit and begin waiting for jobs.
 # Your package.json must contain a "start" script, such as `"start": "node src/main.ts start"`

@@ -1,0 +1,59 @@
+
+ RUN  v4.1.11 /Users/alec/repos/agent-starter-node
+
+ ✓ src/evals/db.test.ts > database > seeds sample accounts exactly once 6ms
+ ✓ src/evals/db.test.ts > database > finds accounts by number, case-insensitively 0ms
+ ✓ src/evals/db.test.ts > database > finds accounts by phone in any spoken format 1ms
+ ✓ src/evals/db.test.ts > database > stores money as integer cents 0ms
+ ✓ src/evals/db.test.ts > database > round-trips payment plans, outcomes, and escalations 1ms
+ ✓ src/evals/db.test.ts > database > rejects invalid rows via CHECK constraints (last line of defense) 1ms
+ ✓ src/evals/db.test.ts > database > updates account status for disputes 0ms
+ ✓ src/evals/policy.test.ts > policy constants > matches the assignment limits 1ms
+ ✓ src/evals/policy.test.ts > computeInstallmentPlan > splits a balance into equal installments with the remainder in the last payment 0ms
+ ✓ src/evals/policy.test.ts > computeInstallmentPlan > handles balances that divide evenly 0ms
+ ✓ src/evals/policy.test.ts > computeInstallmentPlan > accepts the 24 month maximum 0ms
+ ✓ src/evals/policy.test.ts > computeInstallmentPlan > rejects plans longer than 24 months 0ms
+ ✓ src/evals/policy.test.ts > computeInstallmentPlan > rejects non-positive or fractional months 0ms
+ ✓ src/evals/policy.test.ts > computeInstallmentPlan > rejects a non-positive balance 0ms
+ ✓ src/evals/policy.test.ts > settlement floor > computes the 80% minimum, rounding up 0ms
+ ✓ src/evals/policy.test.ts > settlement floor > accepts offers at or above the floor 0ms
+ ✓ src/evals/policy.test.ts > settlement floor > rejects offers below the floor and reports the minimum 0ms
+ ✓ src/evals/policy.test.ts > settlement floor > rejects offers above the balance (that is a payment, not a settlement) 0ms
+ ✓ src/evals/policy.test.ts > namesMatch > matches exact names case-insensitively 0ms
+ ✓ src/evals/policy.test.ts > namesMatch > tolerates middle names and extra whitespace 0ms
+ ✓ src/evals/policy.test.ts > namesMatch > rejects different people 0ms
+ ✓ src/evals/policy.test.ts > namesMatch > rejects a bare first name 0ms
+ ✓ src/evals/policy.test.ts > normalizePhone > reduces any format to the last 10 digits 0ms
+ ✓ src/evals/policy.test.ts > formatCents > formats cents as dollars 22ms
+stdout | src/evals/negotiation.test.ts
+◇ injected env (3) from .env.local // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+
+stdout | src/evals/verification.test.ts
+◇ injected env (3) from .env.local // tip: ⌘ enable debugging { debug: true }
+
+stdout | src/evals/edge-cases.test.ts
+◇ injected env (3) from .env.local // tip: ⌘ enable debugging { debug: true }
+
+ ✓ src/evals/verification.test.ts > verification agent > greets as Nancy from Alpha Bank 3743ms
+ ✓ src/evals/negotiation.test.ts > negotiation agent > explains the balance in plain language and asks for payment in full first 5071ms
+ ✓ src/evals/edge-cases.test.ts > edge cases (verified caller) > records a dispute and stops collecting 5515ms
+ ✓ src/evals/verification.test.ts > verification agent > refuses to share account details before verification 2409ms
+ ✓ src/evals/negotiation.test.ts > negotiation agent > offers a 3-month plan when the caller cannot pay in full 3548ms
+ ✓ src/evals/edge-cases.test.ts > edge cases (verified caller) > responds to hardship with empathy and options, not pressure 4593ms
+ ✓ src/evals/verification.test.ts > verification agent > handles the wrong person without disclosing anything 5670ms
+ ✓ src/evals/edge-cases.test.ts > edge cases (verified caller) > escalates when the caller asks for a human 2597ms
+ ✓ src/evals/negotiation.test.ts > negotiation agent > never agrees to a plan longer than 24 months 4588ms
+ ✓ src/evals/negotiation.test.ts > negotiation agent > rejects a settlement below 80% without revealing the floor 3675ms
+ ✓ src/evals/edge-cases.test.ts > edge cases (verified caller) > stays calm and professional with an angry caller 4500ms
+ ✓ src/evals/verification.test.ts > verification agent > records a failed outcome after three failed verification attempts 5922ms
+ ✓ src/evals/edge-cases.test.ts > edge cases (verified caller) > does not collect on a zero-balance account 2345ms
+ ✓ src/evals/verification.test.ts > verification agent > verifies the right caller and hands off to negotiation 1986ms
+ ✓ src/evals/negotiation.test.ts > negotiation agent > finalizes a payment in full and records the outcome 4555ms
+ ✓ src/evals/verification.test.ts > verification agent > handles an account that cannot be found 2578ms
+ ✓ src/evals/negotiation.test.ts > negotiation agent > does not reveal details if the verified flag was never set (defense in depth) 3052ms
+
+ Test Files  5 passed (5)
+      Tests  41 passed (41)
+   Start at  16:28:54
+   Duration  25.05s (transform 177ms, setup 0ms, import 1.53s, tests 66.39s, environment 0ms)
+

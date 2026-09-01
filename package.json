@@ -10,9 +10,12 @@
     "format": "prettier --write \"**/*.{ts,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
     "test": "vitest --run",
+    "test:unit": "vitest --run src/evals/policy.test.ts src/evals/db.test.ts",
+    "eval": "vitest --run src/evals/verification.test.ts src/evals/negotiation.test.ts src/evals/edge-cases.test.ts",
     "test:watch": "vitest",
     "dev": "node src/main.ts dev",
-    "start": "node src/main.ts start"
+    "start": "node src/main.ts start",
+    "db:seed": "node src/db/seed.ts"
   },
   "engines": {
     "node": ">=24.0.0",
@@ -35,5 +38,8 @@
     "@livekit/rtc-node": "^0.13.31",
     "dotenv": "^17.4.1",
     "zod": "^4.4.3"
+  },
+  "volta": {
+    "node": "24.20.0"
   }
 }
