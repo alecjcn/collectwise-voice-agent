@@ -1,4 +1,4 @@
-import { llm } from '@livekit/agents';
+import { beta, llm } from '@livekit/agents';
 import { z } from 'zod';
 import type { CallState } from '../state.ts';
 
@@ -30,6 +30,26 @@ export function traced<A, R>(
   };
 }
 
+/**
+ * Lets the agent hang up gracefully: the SDK's prebuilt tool waits for the
+ * goodbye to finish playing, shuts the session down, and deletes the room.
+ *
+ * TODO(POC): a production build would warm-transfer escalations to a live
+ * agent (SIP REFER, or adding a human participant to the room) instead of
+ * promising a callback and hanging up. For this prototype, ending the room is
+ * the whole exit path.
+ */
+export function createEndCall() {
+  return beta.createEndCallTool<CallState>({
+    extraDescription:
+      'Also call this after wrapping up a completed call: an outcome must already be recorded (finalizeAgreement or recordCallOutcome) and you must have said goodbye first.',
+    ignoreOnEnter: true,
+    onToolCalled: ({ ctx }) => {
+      ctx.userData.trace.event('end_call', { by: 'agent' });
+    },
+  });
+}
+
 const escalationReasons = [
   'caller_requested',
   'hardship',
@@ -57,8 +77,13 @@ export const escalateToHuman = llm.tool({
       details,
     });
     state.escalated = true;
-    state.trace.event('escalation', { reason, details });
-    return 'Escalation recorded. Tell the caller a specialist will call them back within one business day.';
+    // TODO(POC): this is where a live transfer would happen; see createEndCall.
+    state.trace.event('escalation', {
+      reason,
+      details,
+      note: 'triggered handoff to live agent (POC: callback promised, agent ends call)',
+    });
+    return 'Escalation recorded. Tell the caller a specialist will call them back within one business day. Then record the call outcome if none is recorded yet, say goodbye, and end the call.';
   }),
 });
 

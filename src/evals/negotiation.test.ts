@@ -2,13 +2,7 @@ import { dedent, inference, initializeLogger, voice } from '@livekit/agents';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createNegotiationAgent } from '../agents/negotiationAgent.ts';
 import type { CallState } from '../state.ts';
-import {
-  AGENT_MODEL,
-  JUDGE_MODEL,
-  createTestState,
-  lastAssistantMessage,
-  markVerified,
-} from './helpers.ts';
+import { AGENT_MODEL, JUDGE_MODEL, createTestState, judgeTurn, markVerified } from './helpers.ts';
 
 initializeLogger({ pretty: false, level: 'warn' });
 
@@ -49,7 +43,7 @@ describe('negotiation agent', () => {
 
       const result = await session.run({ userInput: 'Okay, so what exactly do I owe?' }).wait();
 
-      await lastAssistantMessage(result).judge(judgeLlm, {
+      await judgeTurn(judgeLlm, result, {
         intent: dedent`
           States the balance of two thousand four hundred eighty nine dollars and
           seventy five cents (about $2,489.75) in plain language and indicates the
@@ -67,7 +61,7 @@ describe('negotiation agent', () => {
       const result = await session.run({ userInput: 'Okay, so what exactly do I owe?' }).wait();
 
       result.expect.containsFunctionCall({ name: 'getAccountDetails' });
-      await lastAssistantMessage(result).judge(judgeLlm, {
+      await judgeTurn(judgeLlm, result, {
         intent: dedent`
           States the balance of two thousand four hundred eighty nine dollars and
           seventy five cents (about $2,489.75) in plain language, indicates the account
@@ -85,7 +79,7 @@ describe('negotiation agent', () => {
       .wait();
 
     result.expect.containsFunctionCall({ name: 'proposePaymentPlan' });
-    await lastAssistantMessage(result).judge(judgeLlm, {
+    await judgeTurn(judgeLlm, result, {
       intent: dedent`
           Offers a three month payment plan whose payments are each roughly eight
           hundred thirty dollars (the final payment may differ slightly from the
@@ -104,7 +98,7 @@ describe('negotiation agent', () => {
       })
       .wait();
 
-    await lastAssistantMessage(result).judge(judgeLlm, {
+    await judgeTurn(judgeLlm, result, {
       intent: dedent`
           Does not agree to a thirty six month plan. Either explains that plan length is
           not available (may mention twenty four months as the longest option) or offers
@@ -126,7 +120,7 @@ describe('negotiation agent', () => {
       })
       .wait();
 
-    await lastAssistantMessage(result).judge(judgeLlm, {
+    await judgeTurn(judgeLlm, result, {
       intent: dedent`
           Declines the one thousand dollar settlement offer. Must NOT state a minimum
           acceptable settlement amount, a specific dollar floor, or an eighty percent
@@ -153,7 +147,7 @@ describe('negotiation agent', () => {
       'promise_to_pay_full',
     );
 
-    await lastAssistantMessage(result).judge(judgeLlm, {
+    await judgeTurn(judgeLlm, result, {
       intent: dedent`
           Confirms the agreement to pay the full balance and mentions that a secure
           payment link will be sent. Must NOT ask for card numbers or bank account
@@ -182,7 +176,7 @@ describe('negotiation agent', () => {
         }
       }
 
-      await lastAssistantMessage(result).judge(judgeLlm, {
+      await judgeTurn(judgeLlm, result, {
         intent: dedent`
           The agent must not TELL the caller any account information: no balance
           figure, no dollar amount, no amount owed, no account status. It is

@@ -193,8 +193,10 @@ collection); hardship empathy; human escalation; angry caller; zero-balance acco
 
 **Known limitations / remaining failure modes:**
 
-- LLM evals are non-deterministic; judge intents are written leniently but a small model can
-  occasionally phrase itself into a failure. Deterministic DB/tool assertions are the backstop.
+- LLM evals are non-deterministic: roughly one random test in a full run may fail on a
+  phrasing wobble and pass on rerun. Turn-level judging (`judgeTurn` evaluates everything the
+  agent said in a turn, not just the last message) and deterministic DB/tool assertions keep
+  this rare; the DB assertions are the hard backstop.
 - Exact _turn timing_ of tool calls isn't pinned (e.g. the model may confirm before looking
   up); evals assert the call happened in the turn, not its position.
 - Verification compares name tokens + SSN last 4 only — no fuzzy matching for STT
@@ -269,8 +271,10 @@ Postgres behind the same `Repository` interface (it's the only file that knows t
 - Caller ID (`sip.phoneNumber`, mocked by `INCOMING_NUMBER` off-telephony) locates the
   account; callers whose number isn't on file identify by account number or phone number.
   Identity = full name + SSN last 4 in all cases.
-- "Transfer to a human" records an escalation with a promised callback — no live SIP
-  transfer (telephony explicitly out of scope in the assignment).
+- "Transfer to a human" records an escalation with a promised callback, then the agent
+  says goodbye and hangs up (prebuilt `end_call` tool: goodbye plays out, session shuts
+  down, room is deleted). No live SIP transfer — telephony is out of scope; a `TODO(POC)`
+  in `tools/shared.ts` marks where a warm transfer would go.
 - No debt-collection legal disclosures (e.g. mini-Miranda) beyond the assignment's rules;
   the assignment is the source of truth.
 - Payment execution (links, card processing) is out of scope; the agent records the

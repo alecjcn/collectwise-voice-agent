@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { MAX_VERIFICATION_ATTEMPTS, firstNameOf, namesMatch } from '../policy.ts';
 import { VERIFICATION_INSTRUCTIONS, VOICE_RULES, callerLocatedContext } from '../prompts.ts';
 import type { CallState } from '../state.ts';
-import { escalateToHuman, recordCallOutcome, traced } from '../tools/shared.ts';
+import { createEndCall, escalateToHuman, recordCallOutcome, traced } from '../tools/shared.ts';
 import { createNegotiationAgent } from './negotiationAgent.ts';
 
 const lookupAccount = llm.tool({
@@ -123,6 +123,6 @@ export function createVerificationAgent(options?: {
   return voice.Agent.create<CallState>({
     id: 'verification',
     instructions: `${VERIFICATION_INSTRUCTIONS}${context}\n\n${VOICE_RULES}`,
-    tools: [lookupAccount, verifyIdentity, escalateToHuman, recordCallOutcome],
+    tools: [lookupAccount, verifyIdentity, escalateToHuman, recordCallOutcome, createEndCall()],
   });
 }

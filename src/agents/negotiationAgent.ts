@@ -9,7 +9,7 @@ import {
 } from '../policy.ts';
 import { NEGOTIATION_INSTRUCTIONS, VOICE_RULES } from '../prompts.ts';
 import type { CallState } from '../state.ts';
-import { escalateToHuman, recordCallOutcome, traced } from '../tools/shared.ts';
+import { createEndCall, escalateToHuman, recordCallOutcome, traced } from '../tools/shared.ts';
 import { createVerificationAgent } from './verificationAgent.ts';
 
 const STATUS_DESCRIPTIONS: Record<string, string> = {
@@ -292,6 +292,7 @@ export function createNegotiationAgent(options?: {
       recordDispute,
       escalateToHuman,
       recordCallOutcome,
+      createEndCall(),
     ],
     onEnter(ctx) {
       // Structural guardrail: this agent must never operate on an unverified

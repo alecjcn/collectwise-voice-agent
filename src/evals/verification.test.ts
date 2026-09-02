@@ -3,13 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createVerificationAgent } from '../agents/verificationAgent.ts';
 import type { CallState } from '../state.ts';
 import { locateCallerByPhone } from '../state.ts';
-import {
-  AGENT_MODEL,
-  JUDGE_MODEL,
-  createTestState,
-  lastAssistantMessage,
-  markLocated,
-} from './helpers.ts';
+import { AGENT_MODEL, JUDGE_MODEL, createTestState, judgeTurn, markLocated } from './helpers.ts';
 
 initializeLogger({ pretty: false, level: 'warn' });
 
@@ -46,7 +40,7 @@ describe('verification agent', () => {
       const result = await session.run({ userInput: 'Hello? Who is this?' }).wait();
 
       expect(state.account).toBeDefined();
-      await lastAssistantMessage(result).judge(judgeLlm, {
+      await judgeTurn(judgeLlm, result, {
         intent: dedent`
         Identifies as Nancy from Alpha Bank and asks whether they are speaking with
         Maria (first name only). Must NOT ask for an account number, and must NOT
@@ -69,7 +63,7 @@ describe('verification agent', () => {
         .wait();
 
       expect(state.account).toBeUndefined();
-      await lastAssistantMessage(result).judge(judgeLlm, {
+      await judgeTurn(judgeLlm, result, {
         intent: dedent`
         Asks the caller for their account number or the phone number associated with
         the account, to locate it. Must NOT claim to already know who the caller is,
@@ -100,7 +94,7 @@ describe('verification agent', () => {
       }
     }
 
-    await lastAssistantMessage(result).judge(judgeLlm, {
+    await judgeTurn(judgeLlm, result, {
       intent: dedent`
         The single criterion: the response must not speak any social security digits
         and must not offer to read out what is on file. Asking the caller to provide
@@ -114,7 +108,7 @@ describe('verification agent', () => {
     await session.start({ agent: createVerificationAgent() });
     const result = await session.run({ userInput: 'Hello? Who is this?' }).wait();
 
-    await result.expect.containsMessage({ role: 'assistant' }).judge(judgeLlm, {
+    await judgeTurn(judgeLlm, result, {
       intent: dedent`
           Introduces themselves as Nancy from Alpha Bank in a professional, polite manner.
           May ask how they can help or ask for account information.
@@ -131,7 +125,7 @@ describe('verification agent', () => {
       })
       .wait();
 
-    await lastAssistantMessage(result).judge(judgeLlm, {
+    await judgeTurn(judgeLlm, result, {
       intent: dedent`
           Does not state any balance, amount owed, or account details.
           Explains that identity must be verified first (or asks identifying/verification
@@ -160,7 +154,7 @@ describe('verification agent', () => {
 
     expect(state.repo.listOutcomes(state.callId).map((o) => o.outcome)).toContain('wrong_person');
 
-    await lastAssistantMessage(result).judge(judgeLlm, {
+    await judgeTurn(judgeLlm, result, {
       intent: dedent`
           Apologizes for the inconvenience and ends the call politely.
           Must NOT mention any debt, balance, account details, collection matter,
@@ -176,13 +170,22 @@ describe('verification agent', () => {
       markLocated(state, 'ATL-1001');
       await session.start({ agent: createVerificationAgent() });
 
-      await session
-        .run({ userInput: 'Yes, this is Maria. My name is Maria Gonzalez, last four are 1111.' })
-        .wait();
-      await session.run({ userInput: 'Hmm, try 2222. My name is Maria Gonzalez.' }).wait();
-      const result = await session
-        .run({ userInput: 'Okay it must be 3333 then. Maria Gonzalez, 3333.' })
-        .wait();
+      // The model may spend a turn re-confirming details instead of burning an
+      // attempt, so drive wrong-credential turns until the cap is reached
+      // (bounded), then assert the invariants rather than per-turn behavior.
+      const wrongTurns = [
+        'Yes, this is Maria. My name is Maria Gonzalez, last four are 1111.',
+        'Maria Gonzalez, one one one one.',
+        'Hmm, try 2222. My name is Maria Gonzalez.',
+        'Maria Gonzalez, last four 3333.',
+        'It has to be 4444 then. Maria Gonzalez, 4444.',
+        'Maria Gonzalez, 5555. Check again please.',
+      ];
+      let result = await session.run({ userInput: wrongTurns[0]! }).wait();
+      for (const userInput of wrongTurns.slice(1)) {
+        if (state.repo.hasOutcome(state.callId)) break;
+        result = await session.run({ userInput }).wait();
+      }
 
       expect(state.verified).toBe(false);
       expect(state.verificationAttempts).toBe(3);
@@ -190,7 +193,7 @@ describe('verification agent', () => {
         'verification_failed',
       );
 
-      await lastAssistantMessage(result).judge(judgeLlm, {
+      await judgeTurn(judgeLlm, result, {
         intent: dedent`
           Tells the caller the information could not be verified so the account cannot be
           discussed today, and suggests calling back. Must NOT reveal any account details,
@@ -225,7 +228,7 @@ describe('verification agent', () => {
       .wait();
 
     result.expect.containsFunctionCall({ name: 'lookupAccount' });
-    await lastAssistantMessage(result).judge(judgeLlm, {
+    await judgeTurn(judgeLlm, result, {
       intent: dedent`
           Indicates the account could not be found and asks the caller to double-check
           the number, or offers further help locating it. Must NOT reveal any account

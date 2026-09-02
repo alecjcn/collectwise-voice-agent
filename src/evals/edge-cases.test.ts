@@ -2,13 +2,7 @@ import { dedent, inference, initializeLogger, voice } from '@livekit/agents';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createNegotiationAgent } from '../agents/negotiationAgent.ts';
 import type { CallState } from '../state.ts';
-import {
-  AGENT_MODEL,
-  JUDGE_MODEL,
-  createTestState,
-  lastAssistantMessage,
-  markVerified,
-} from './helpers.ts';
+import { AGENT_MODEL, JUDGE_MODEL, createTestState, judgeTurn, markVerified } from './helpers.ts';
 
 initializeLogger({ pretty: false, level: 'warn' });
 
@@ -50,7 +44,7 @@ describe('edge cases (verified caller)', () => {
     expect(state.repo.listOutcomes(state.callId).map((o) => o.outcome)).toContain('dispute');
     expect(state.repo.getAccountById(state.account!.id)!.status).toBe('in_dispute');
 
-    await lastAssistantMessage(result).judge(judgeLlm, {
+    await judgeTurn(judgeLlm, result, {
       intent: dedent`
           Acknowledges the dispute: says the account is marked as disputed and reviewed,
           and/or that written validation of the debt will be mailed. Must NOT ask for
@@ -72,7 +66,7 @@ describe('edge cases (verified caller)', () => {
         })
         .wait();
 
-      await lastAssistantMessage(result).judge(judgeLlm, {
+      await judgeTurn(judgeLlm, result, {
         intent: dedent`
           Responds with genuine empathy to the hardship and applies no pressure.
           Offers a gentler path: a smaller or longer payment arrangement, a specialist
@@ -92,7 +86,7 @@ describe('edge cases (verified caller)', () => {
     result.expect.containsFunctionCall({ name: 'escalateToHuman' });
     expect(state.repo.listEscalations(state.callId)).not.toHaveLength(0);
 
-    await lastAssistantMessage(result).judge(judgeLlm, {
+    await judgeTurn(judgeLlm, result, {
       intent: dedent`
           Tells the caller a human specialist will follow up or call them back
           (may mention within one business day). Remains polite.
@@ -109,7 +103,7 @@ describe('edge cases (verified caller)', () => {
       })
       .wait();
 
-    await lastAssistantMessage(result).judge(judgeLlm, {
+    await judgeTurn(judgeLlm, result, {
       intent: dedent`
           Stays calm and professional. Acknowledges or apologizes for the frustration
           without arguing, threatening, or matching the caller's hostility, and offers
@@ -125,7 +119,7 @@ describe('edge cases (verified caller)', () => {
       .run({ userInput: 'I got a letter last year. Do I still owe you anything?' })
       .wait();
 
-    await lastAssistantMessage(result).judge(judgeLlm, {
+    await judgeTurn(judgeLlm, result, {
       intent: dedent`
           Tells the caller the account is paid or has no balance due, and does not ask
           for any payment.
