@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { normalizePhone } from '../policy.ts';
+import { normalizeAccountNumber, normalizePhone } from '../policy.ts';
 
 export type AccountStatus = 'delinquent' | 'in_dispute' | 'settled' | 'paid' | 'closed';
 
@@ -66,11 +66,24 @@ export class Repository {
     this.db = db;
   }
 
+  /**
+   * Find an account by number, tolerant of spoken formats: separators and case
+   * are ignored ("ATL 1003" matches "ATL-1003"), and a digits-only input of at
+   * least 4 digits matches when it is the unique suffix of one account number.
+   */
   findAccountByNumber(accountNumber: string): Account | undefined {
-    const row = this.db
-      .prepare('SELECT * FROM accounts WHERE UPPER(account_number) = UPPER(?)')
-      .get(accountNumber.trim());
-    return row ? rowToAccount(row) : undefined;
+    const normalized = normalizeAccountNumber(accountNumber);
+    if (!normalized) return undefined;
+    const accounts = this.db.prepare('SELECT * FROM accounts').all().map(rowToAccount);
+    const exact = accounts.find((a) => normalizeAccountNumber(a.accountNumber) === normalized);
+    if (exact) return exact;
+    if (/^\d{4,}$/.test(normalized)) {
+      const suffixMatches = accounts.filter((a) =>
+        normalizeAccountNumber(a.accountNumber).endsWith(normalized),
+      );
+      if (suffixMatches.length === 1) return suffixMatches[0];
+    }
+    return undefined;
   }
 
   findAccountByPhone(phone: string): Account | undefined {

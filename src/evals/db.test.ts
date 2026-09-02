@@ -25,6 +25,19 @@ describe('database', () => {
     expect(repo.findAccountByNumber('ATL-9999')).toBeUndefined();
   });
 
+  it('finds accounts by number in any spoken format', () => {
+    const repo = freshRepo();
+    // STT often drops the dash or inserts spaces.
+    expect(repo.findAccountByNumber('ATL 1003')?.debtorName).toBe('Sarah Whitmore');
+    expect(repo.findAccountByNumber('atl1003')?.debtorName).toBe('Sarah Whitmore');
+    expect(repo.findAccountByNumber('A T L 1003')?.debtorName).toBe('Sarah Whitmore');
+    // Digits only: match by unique suffix.
+    expect(repo.findAccountByNumber('1003')?.debtorName).toBe('Sarah Whitmore');
+    // Too short or unmatchable digits must not guess.
+    expect(repo.findAccountByNumber('3')).toBeUndefined();
+    expect(repo.findAccountByNumber('9999')).toBeUndefined();
+  });
+
   it('finds accounts by phone in any spoken format', () => {
     const repo = freshRepo();
     expect(repo.findAccountByPhone('555-010-4821')?.debtorName).toBe('Maria Gonzalez');

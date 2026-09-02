@@ -83,6 +83,11 @@ export function namesMatch(provided: string, actual: string): boolean {
   return providedTokens.includes(first) && providedTokens.includes(last);
 }
 
+/** Reduce any spoken/stored account number format ("ATL 1003", "atl-1003") for comparison. */
+export function normalizeAccountNumber(accountNumber: string): string {
+  return accountNumber.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
 /** Reduce any spoken/stored phone format to its last 10 digits for comparison. */
 export function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, '').slice(-10);
