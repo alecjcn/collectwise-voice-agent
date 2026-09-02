@@ -275,6 +275,7 @@ export function createNegotiationAgent(options?: {
     ? `\n\n# Account on file (verified caller)\n\n${describeAccount(options.account)} Use these details when explaining the account; call getAccountDetails only if you need to re-check after something changes.`
     : '';
   return voice.Agent.create<CallState>({
+    id: 'negotiation',
     instructions: `${NEGOTIATION_INSTRUCTIONS}${accountContext}\n\n${VOICE_RULES}`,
     ...(options?.chatCtx ? { chatCtx: options.chatCtx } : {}),
     tools: [

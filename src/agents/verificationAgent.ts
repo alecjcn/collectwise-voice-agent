@@ -125,6 +125,7 @@ export function createVerificationAgent(options?: {
     ? `\n\n${callerLocatedContext(options.locatedFirstName)}`
     : '';
   return voice.Agent.create<CallState>({
+    id: 'verification',
     instructions: `${VERIFICATION_INSTRUCTIONS}${context}\n\n${VOICE_RULES}`,
     tools: [lookupAccount, verifyIdentity, escalateToHuman, recordCallOutcome],
   });

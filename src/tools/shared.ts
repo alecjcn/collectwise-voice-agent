@@ -17,7 +17,8 @@ export function traced<A, R>(
       const result = await execute(args, opts);
       const isHandoff = typeof result === 'object' && result !== null && 'agent' in result;
       if (isHandoff) {
-        trace.event('handoff', { name });
+        const target = (result as { agent?: { id?: string } }).agent?.id;
+        trace.event('handoff', { via: name, to: target });
       } else {
         trace.event('tool_result', { name, result });
       }

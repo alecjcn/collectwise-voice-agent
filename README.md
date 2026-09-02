@@ -217,7 +217,7 @@ events are emitted at each decision point:
 {"ts":"…","callId":"…","type":"tool_call","name":"verifyIdentity","args":{"fullName":"Maria Gonzalez","last4Ssn":"7301"}}
 {"ts":"…","callId":"…","type":"verification","attempt":1,"success":true}
 {"ts":"…","callId":"…","type":"state_transition","from":"unverified","to":"verified"}
-{"ts":"…","callId":"…","type":"handoff","name":"verifyIdentity"}
+{"ts":"…","callId":"…","type":"handoff","via":"verifyIdentity","to":"negotiation"}
 {"ts":"…","callId":"…","type":"plan_decision","action":"proposed","months":3,"monthlyCents":82992}
 {"ts":"…","callId":"…","type":"outcome","outcome":"payment_plan_agreed"}
 ```
