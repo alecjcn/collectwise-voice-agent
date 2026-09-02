@@ -14,6 +14,14 @@ export interface CallState {
   incomingNumber?: string;
   /** Set by caller-ID lookup at call start, or by the lookupAccount tool. */
   accountId?: number;
+  /**
+   * Full account row, loaded once at lookup time. Lives only in process
+   * memory: the LLM never sees userData directly, so holding it here leaks
+   * nothing. It reaches a prompt in exactly one place — injected into the
+   * NegotiationAgent's instructions when that agent is created after a
+   * successful verifyIdentity call.
+   */
+  account?: Account;
   /** First name on file, used to confirm the right party without disclosure. */
   debtorFirstName?: string;
   /** Only set to true by a successful verifyIdentity call. */
@@ -42,21 +50,28 @@ export function createCallState(input: {
 }
 
 /**
+ * Record a located account on the call state. The full row is cached in
+ * process memory, but only the first name is ever surfaced pre-verification.
+ */
+export function attachLocatedAccount(state: CallState, account: Account): void {
+  state.accountId = account.id;
+  state.account = account;
+  state.debtorFirstName = account.debtorName.split(/\s+/)[0]!;
+}
+
+/**
  * Caller-ID lookup at call start: match the incoming phone number against the
- * accounts on file. On a match, prefill only the account id and first name —
- * never balances or other details, which stay behind the verified gate.
- * Returns the account, or undefined when the number is unknown.
+ * accounts on file (via the repository) and attach the result to the call
+ * state. This lives here rather than in the repository because it is session
+ * policy, not data access: what a caller-ID match is allowed to prefill, and
+ * what gets traced. Returns the account, or undefined when unknown.
  */
 export function locateCallerByPhone(state: CallState, phoneNumber: string): Account | undefined {
   state.incomingNumber = phoneNumber;
   const account = state.repo.findAccountByPhone(phoneNumber);
   const masked = phoneNumber.replace(/\d(?=\d{4})/g, '*');
-  if (!account) {
-    state.trace.event('caller_lookup', { incomingNumber: masked, matched: false });
-    return undefined;
-  }
-  state.accountId = account.id;
-  state.debtorFirstName = account.debtorName.split(/\s+/)[0]!;
-  state.trace.event('caller_lookup', { incomingNumber: masked, matched: true });
+  state.trace.event('caller_lookup', { incomingNumber: masked, matched: account !== undefined });
+  if (!account) return undefined;
+  attachLocatedAccount(state, account);
   return account;
 }

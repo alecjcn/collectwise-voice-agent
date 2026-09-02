@@ -1,5 +1,6 @@
 import { llm, voice } from '@livekit/agents';
 import { z } from 'zod';
+import type { Account } from '../db/repository.ts';
 import { computeInstallmentPlan, formatCents, validateSettlementOffer } from '../policy.ts';
 import { NEGOTIATION_INSTRUCTIONS, VOICE_RULES } from '../prompts.ts';
 import type { CallState } from '../state.ts';
@@ -13,6 +14,14 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
   paid: 'paid in full',
   closed: 'closed',
 };
+
+function describeAccount(account: Account): string {
+  const statusText = STATUS_DESCRIPTIONS[account.status] ?? account.status;
+  if (account.balanceCents <= 0) {
+    return `Account ${account.accountNumber} for ${account.debtorName} has a zero balance and is ${statusText}. No payment is due; do not attempt to collect.`;
+  }
+  return `Account ${account.accountNumber} for ${account.debtorName}, originally with ${account.clientName}. Current balance: ${formatCents(account.balanceCents)}. Status: ${statusText}.`;
+}
 
 /**
  * Deterministic guardrail: an unverified session must never be answered by this
@@ -55,12 +64,7 @@ const getAccountDetails = llm.tool({
     const result = requireVerifiedAccount(state);
     if ('unverified' in result) return handoffToVerification(state);
     if ('error' in result) return result.error;
-    const { account } = result;
-    const statusText = STATUS_DESCRIPTIONS[account.status] ?? account.status;
-    if (account.balanceCents <= 0) {
-      return `Account ${account.accountNumber} for ${account.debtorName} has a zero balance and is ${statusText}. No payment is due; do not attempt to collect.`;
-    }
-    return `Account ${account.accountNumber} for ${account.debtorName}, originally with ${account.clientName}. Current balance: ${formatCents(account.balanceCents)}. Status: ${statusText}.`;
+    return describeAccount(result.account);
   }),
 });
 
@@ -256,11 +260,22 @@ const recordDispute = llm.tool({
   }),
 });
 
+/**
+ * @param options.account - the verified caller's account, injected into this
+ * agent's instructions so the first verified turn needs no tool round-trip.
+ * Only pass it when verification has succeeded: this factory is the single
+ * place account details ever enter a prompt, and its two production call
+ * sites (verifyIdentity's handoff, and tests) both sit behind that check.
+ */
 export function createNegotiationAgent(options?: {
   chatCtx?: llm.ChatContext;
+  account?: Account;
 }): voice.Agent<CallState> {
+  const accountContext = options?.account
+    ? `\n\n# Account on file (verified caller)\n\n${describeAccount(options.account)} Use these details when explaining the account; call getAccountDetails only if you need to re-check after something changes.`
+    : '';
   return voice.Agent.create<CallState>({
-    instructions: `${NEGOTIATION_INSTRUCTIONS}\n\n${VOICE_RULES}`,
+    instructions: `${NEGOTIATION_INSTRUCTIONS}${accountContext}\n\n${VOICE_RULES}`,
     ...(options?.chatCtx ? { chatCtx: options.chatCtx } : {}),
     tools: [
       getAccountDetails,
@@ -285,8 +300,9 @@ export function createNegotiationAgent(options?: {
         return;
       }
       ctx.session.generateReply({
-        instructions:
-          'Thank the caller for verifying their identity, then use getAccountDetails and explain the balance and account status in plain language, and ask if they can take care of the full balance today.',
+        instructions: options?.account
+          ? 'Thank the caller for verifying their identity, then explain the balance and account status from the account on file in plain language, and ask if they can take care of the full balance today.'
+          : 'Thank the caller for verifying their identity, then use getAccountDetails and explain the balance and account status in plain language, and ask if they can take care of the full balance today.',
       });
     },
   });

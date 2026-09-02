@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import { openDb } from '../db/db.ts';
 import { type Account, Repository } from '../db/repository.ts';
 import { seedIfEmpty } from '../db/seed.ts';
-import { type CallState, createCallState } from '../state.ts';
+import { type CallState, attachLocatedAccount, createCallState } from '../state.ts';
 import { Tracer } from '../trace.ts';
 
 // LiveKit Inference credentials for the agent LLM and the judge.
@@ -18,15 +18,15 @@ export const JUDGE_MODEL = 'openai/gpt-4.1-mini';
 /**
  * Assertion helper for the last SUBSTANTIVE assistant message in a run:
  * tool calls may happen after the agent speaks, and small models occasionally
- * emit a stray content-free token (for example "}") as a trailing message, so
- * skip anything without letters.
+ * emit a stray content-free trailing message (for example "}" or "</thead>"),
+ * so skip anything that doesn't contain at least two real words.
  */
 export function lastAssistantMessage(result: voice.testing.RunResult) {
   for (let i = result.events.length - 1; i >= 0; i--) {
     const event = result.events[i]!;
     if (event.type === 'message' && event.item.role === 'assistant') {
       const text = event.item.textContent ?? '';
-      if (!/[a-z]/i.test(text)) continue;
+      if ((text.match(/[a-z]{2,}/gi) ?? []).length < 2) continue;
       return result.expect.at(i).isMessage({ role: 'assistant' });
     }
   }
@@ -53,10 +53,7 @@ export function createTestState(): CallState {
  * agent in isolation.
  */
 export function markVerified(state: CallState, accountNumber = 'ATL-1001'): Account {
-  const account = state.repo.findAccountByNumber(accountNumber);
-  if (!account) throw new Error(`Seed account ${accountNumber} not found`);
-  state.accountId = account.id;
-  state.debtorFirstName = account.debtorName.split(/\s+/)[0]!;
+  const account = markLocated(state, accountNumber);
   state.verified = true;
   return account;
 }
@@ -68,7 +65,6 @@ export function markVerified(state: CallState, accountNumber = 'ATL-1001'): Acco
 export function markLocated(state: CallState, accountNumber = 'ATL-1001'): Account {
   const account = state.repo.findAccountByNumber(accountNumber);
   if (!account) throw new Error(`Seed account ${accountNumber} not found`);
-  state.accountId = account.id;
-  state.debtorFirstName = account.debtorName.split(/\s+/)[0]!;
+  attachLocatedAccount(state, account);
   return account;
 }

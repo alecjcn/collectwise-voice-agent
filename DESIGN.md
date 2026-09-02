@@ -49,8 +49,11 @@ Guardrails are enforced in **two layers**:
 ### Session state
 
 Typed `userData` on the `AgentSession` (`CallState` in `src/state.ts`): `callId`, `accountId`,
-`verified`, `verificationAttempts`, `lookupFailures`, `escalated`, `outcomeRecorded`, plus
-injected dependencies (`repo`, `trace`). Injecting the repository and tracer through `userData`
+the cached `account` row, `verified`, `verificationAttempts`, `lookupFailures`, `escalated`,
+`outcomeRecorded`, plus injected dependencies (`repo`, `trace`). `userData` is never visible
+to the LLM — data reaches a prompt only where code puts it: pre-verification, only the first
+name; post-verification, the account details are injected into the NegotiationAgent's
+instructions at handoff (no tool round-trip for the first verified turn). Injecting the repository and tracer through `userData`
 means tests run against an isolated in-memory DB with zero mocking frameworks.
 
 ### Voice pipeline

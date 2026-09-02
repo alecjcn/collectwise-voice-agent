@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { MAX_VERIFICATION_ATTEMPTS, namesMatch } from '../policy.ts';
 import { VERIFICATION_INSTRUCTIONS, VOICE_RULES, callerLocatedContext } from '../prompts.ts';
 import type { CallState } from '../state.ts';
+import { attachLocatedAccount } from '../state.ts';
 import { escalateToHuman, recordCallOutcome, traced } from '../tools/shared.ts';
 import { createNegotiationAgent } from './negotiationAgent.ts';
 
@@ -36,8 +37,7 @@ const lookupAccount = llm.tool({
       }
       return 'No matching account was found. Ask the caller to double-check the number and try once more.';
     }
-    state.accountId = account.id;
-    state.debtorFirstName = account.debtorName.split(/\s+/)[0]!;
+    attachLocatedAccount(state, account);
     return `Account located. The first name on file is ${state.debtorFirstName}. Confirm you are speaking with ${state.debtorFirstName}, then verify their identity before discussing anything about the account.`;
   }),
 });
@@ -84,9 +84,13 @@ const verifyIdentity = llm.tool({
 
     if (success) {
       state.verified = true;
+      state.account = account;
       state.trace.event('state_transition', { from: 'unverified', to: 'verified' });
+      // The caller is now verified, so the negotiation agent is created with
+      // the account details injected into its instructions — the first
+      // verified turn needs no getAccountDetails round-trip.
       return llm.handoff({
-        agent: createNegotiationAgent({ chatCtx: ctx.session.chatCtx }),
+        agent: createNegotiationAgent({ chatCtx: ctx.session.chatCtx, account }),
         returns: 'Identity verified successfully.',
       });
     }

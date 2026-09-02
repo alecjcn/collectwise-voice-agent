@@ -39,6 +39,27 @@ describe('negotiation agent', () => {
   }
 
   it(
+    'explains the balance from injected account context without a tool round-trip',
+    { timeout: 60000 },
+    async () => {
+      // Post-verification path: the handoff passes the account into the agent
+      // factory, so the details live in its instructions.
+      const account = markVerified(state, 'ATL-1001');
+      await session.start({ agent: createNegotiationAgent({ account }) });
+
+      const result = await session.run({ userInput: 'Okay, so what exactly do I owe?' }).wait();
+
+      await lastAssistantMessage(result).judge(judgeLlm, {
+        intent: dedent`
+          States the balance of two thousand four hundred eighty nine dollars and
+          seventy five cents (about $2,489.75) in plain language and indicates the
+          account is past due. May ask about paying the balance.
+        `,
+      });
+    },
+  );
+
+  it(
     'explains the balance in plain language and asks for payment in full first',
     { timeout: 60000 },
     async () => {
