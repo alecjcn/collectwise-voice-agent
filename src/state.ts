@@ -1,4 +1,4 @@
-import type { Repository } from './db/repository.ts';
+import type { Account, Repository } from './db/repository.ts';
 import type { Tracer } from './trace.ts';
 
 /**
@@ -10,7 +10,9 @@ export interface CallState {
   callId: string;
   repo: Repository;
   trace: Tracer;
-  /** Set by lookupAccount once an account is located. */
+  /** Caller's phone number: sip.phoneNumber on real calls, INCOMING_NUMBER mock otherwise. */
+  incomingNumber?: string;
+  /** Set by caller-ID lookup at call start, or by the lookupAccount tool. */
   accountId?: number;
   /** First name on file, used to confirm the right party without disclosure. */
   debtorFirstName?: string;
@@ -37,4 +39,24 @@ export function createCallState(input: {
     escalated: false,
     outcomeRecorded: false,
   };
+}
+
+/**
+ * Caller-ID lookup at call start: match the incoming phone number against the
+ * accounts on file. On a match, prefill only the account id and first name —
+ * never balances or other details, which stay behind the verified gate.
+ * Returns the account, or undefined when the number is unknown.
+ */
+export function locateCallerByPhone(state: CallState, phoneNumber: string): Account | undefined {
+  state.incomingNumber = phoneNumber;
+  const account = state.repo.findAccountByPhone(phoneNumber);
+  const masked = phoneNumber.replace(/\d(?=\d{4})/g, '*');
+  if (!account) {
+    state.trace.event('caller_lookup', { incomingNumber: masked, matched: false });
+    return undefined;
+  }
+  state.accountId = account.id;
+  state.debtorFirstName = account.debtorName.split(/\s+/)[0]!;
+  state.trace.event('caller_lookup', { incomingNumber: masked, matched: true });
+  return account;
 }

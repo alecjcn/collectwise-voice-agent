@@ -111,6 +111,14 @@ src/
   evals/                     unit tests + LLM behavioral evals
 ```
 
+**Caller identification first.** At call start the agent reads the caller's phone number —
+on a real inbound call this is the `sip.phoneNumber` participant attribute; for browser and
+local testing the `INCOMING_NUMBER` env var mocks it. A match against the accounts table
+prefills only the account id and first name into session state, so Nancy skips the account
+questions and opens with right-party confirmation ("Am I speaking with Maria?"). Unknown or
+absent numbers fall back to the `lookupAccount` tool (account number or phone on file).
+Caller ID only _locates_ — it never verifies; the balance stays locked until the SSN check.
+
 **Two agents, one handoff at the trust boundary.** The call starts in the
 `VerificationAgent`, whose tools _cannot return account details at all_ —
 `lookupAccount` returns only a first name so Nancy can confirm the right party. A successful
@@ -175,7 +183,8 @@ with a fresh in-memory seeded DB per test, and assert on **all three layers**: w
 _says_ (judge), which tools it _calls_ (`containsFunctionCall`), and what actually hit the
 _database_ (outcome/plan/escalation rows).
 
-**Coverage:** greeting persona; pre-verification refusal; wrong person (no disclosure +
+**Coverage:** caller-ID match (right-party confirmation by first name) and unknown-number
+fallback; greeting persona; pre-verification refusal; wrong person (no disclosure +
 outcome row); 3-strikes verification failure; successful verify → handoff; account not found;
 balance explanation + pay-in-full-first; 3-month plan offer; 36-month refusal (and no plan row
 persisted); lowball settlement refusal without revealing the floor; pay-in-full finalization
@@ -255,8 +264,9 @@ Postgres behind the same `Repository` interface (it's the only file that knows t
 
 ## Assumptions
 
-- Inbound callers identify their account by account number or the phone number on file
-  (no SIP caller-ID matching in scope). Identity = full name + SSN last 4.
+- Caller ID (`sip.phoneNumber`, mocked by `INCOMING_NUMBER` off-telephony) locates the
+  account; callers whose number isn't on file identify by account number or phone number.
+  Identity = full name + SSN last 4 in all cases.
 - "Transfer to a human" records an escalation with a promised callback — no live SIP
   transfer (telephony explicitly out of scope in the assignment).
 - No debt-collection legal disclosures (e.g. mini-Miranda) beyond the assignment's rules;

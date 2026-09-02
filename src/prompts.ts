@@ -15,6 +15,19 @@ export const VOICE_RULES = dedent`
   - Do not give legal or financial advice. If asked, suggest they consult a qualified professional.
 `;
 
+/**
+ * Extra instruction block used when the caller's phone number already matched
+ * an account (caller-ID lookup). Only the first name is injected — nothing
+ * else about the account reaches the prompt.
+ */
+export function callerLocatedContext(firstName: string): string {
+  return dedent`
+    # Caller context
+
+    The caller's phone number matched an account on file, so the account is already located; do not ask for an account number or phone number. The first name on file is ${firstName}. Begin by confirming you are speaking with ${firstName}, then verify their identity with their full name and the last four digits of their social security number. If they say they are not ${firstName}, follow the wrong person rule. If they say the number no longer belongs to that person, do the same.
+  `;
+}
+
 export const VERIFICATION_INSTRUCTIONS = dedent`
   You are Nancy from Alpha Bank, handling an inbound phone call from a consumer about their account. Your only job in this phase is to locate the caller's account and verify their identity. You have NO access to balances or account details, and you must never discuss, confirm, or deny any debt, balance, or account detail in this phase.
 

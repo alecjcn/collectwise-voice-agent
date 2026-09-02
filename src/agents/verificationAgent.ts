@@ -1,7 +1,7 @@
 import { llm, voice } from '@livekit/agents';
 import { z } from 'zod';
 import { MAX_VERIFICATION_ATTEMPTS, namesMatch } from '../policy.ts';
-import { VERIFICATION_INSTRUCTIONS, VOICE_RULES } from '../prompts.ts';
+import { VERIFICATION_INSTRUCTIONS, VOICE_RULES, callerLocatedContext } from '../prompts.ts';
 import type { CallState } from '../state.ts';
 import { escalateToHuman, recordCallOutcome, traced } from '../tools/shared.ts';
 import { createNegotiationAgent } from './negotiationAgent.ts';
@@ -109,9 +109,19 @@ const verifyIdentity = llm.tool({
   }),
 });
 
-export function createVerificationAgent(): voice.Agent<CallState> {
+/**
+ * @param options.locatedFirstName - set when caller-ID lookup already matched
+ * an account; skips the account-number ask and goes straight to right-party
+ * confirmation + identity verification.
+ */
+export function createVerificationAgent(options?: {
+  locatedFirstName?: string;
+}): voice.Agent<CallState> {
+  const context = options?.locatedFirstName
+    ? `\n\n${callerLocatedContext(options.locatedFirstName)}`
+    : '';
   return voice.Agent.create<CallState>({
-    instructions: `${VERIFICATION_INSTRUCTIONS}\n\n${VOICE_RULES}`,
+    instructions: `${VERIFICATION_INSTRUCTIONS}${context}\n\n${VOICE_RULES}`,
     tools: [lookupAccount, verifyIdentity, escalateToHuman, recordCallOutcome],
   });
 }

@@ -26,7 +26,9 @@ function handoffToVerification(state: CallState) {
     reason: 'session not verified',
   });
   return llm.handoff({
-    agent: createVerificationAgent(),
+    agent: createVerificationAgent(
+      state.debtorFirstName ? { locatedFirstName: state.debtorFirstName } : undefined,
+    ),
     returns:
       'NOT ALLOWED: identity verification is not complete. Do not state any balance, amount, or account detail, and do not invent figures. Ask the caller to verify their identity first.',
   });

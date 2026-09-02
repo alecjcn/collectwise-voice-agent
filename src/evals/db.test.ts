@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { openDb } from '../db/db.ts';
 import { Repository } from '../db/repository.ts';
 import { SEED_ACCOUNTS, seedIfEmpty } from '../db/seed.ts';
+import { locateCallerByPhone } from '../state.ts';
+import { createTestState } from './helpers.ts';
 
 function freshRepo(): Repository {
   const repo = new Repository(openDb(':memory:'));
@@ -82,5 +84,29 @@ describe('database', () => {
     const account = repo.findAccountByNumber('ATL-1001')!;
     repo.updateAccountStatus(account.id, 'in_dispute');
     expect(repo.getAccountById(account.id)!.status).toBe('in_dispute');
+  });
+});
+
+describe('caller-ID lookup (locateCallerByPhone)', () => {
+  it('prefills account id and first name for a known incoming number', () => {
+    const state = createTestState();
+    const account = locateCallerByPhone(state, '555-010-4821');
+
+    expect(account?.debtorName).toBe('Maria Gonzalez');
+    expect(state.accountId).toBe(account!.id);
+    expect(state.debtorFirstName).toBe('Maria');
+    expect(state.incomingNumber).toBe('555-010-4821');
+    // Caller ID locates the account but never verifies identity.
+    expect(state.verified).toBe(false);
+  });
+
+  it('leaves the state untouched for an unknown incoming number', () => {
+    const state = createTestState();
+    const account = locateCallerByPhone(state, '555-000-9999');
+
+    expect(account).toBeUndefined();
+    expect(state.accountId).toBeUndefined();
+    expect(state.debtorFirstName).toBeUndefined();
+    expect(state.verified).toBe(false);
   });
 });

@@ -2,6 +2,7 @@ import { dedent, inference, initializeLogger, voice } from '@livekit/agents';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createVerificationAgent } from '../agents/verificationAgent.ts';
 import type { CallState } from '../state.ts';
+import { locateCallerByPhone } from '../state.ts';
 import {
   AGENT_MODEL,
   JUDGE_MODEL,
@@ -30,6 +31,53 @@ describe('verification agent', () => {
     await judgeLlm?.aclose();
     await agentLlm?.aclose();
   });
+
+  it(
+    'confirms the right party by first name when caller ID matches',
+    { timeout: 60000 },
+    async () => {
+      // Happy path: the incoming number (mocked via INCOMING_NUMBER in prod)
+      // matches Maria's account, so the account is prefilled before the call.
+      locateCallerByPhone(state, '+15550104821');
+      await session.start({
+        agent: createVerificationAgent({ locatedFirstName: state.debtorFirstName! }),
+      });
+
+      const result = await session.run({ userInput: 'Hello? Who is this?' }).wait();
+
+      expect(state.accountId).toBeDefined();
+      await lastAssistantMessage(result).judge(judgeLlm, {
+        intent: dedent`
+        Identifies as Nancy from Alpha Bank and asks whether they are speaking with
+        Maria (first name only). Must NOT ask for an account number, and must NOT
+        mention any balance, debt, or account details.
+      `,
+      });
+    },
+  );
+
+  it(
+    'falls back to asking for the account when caller ID is unknown',
+    { timeout: 60000 },
+    async () => {
+      // Sad path: the incoming number matches nothing, so no prefill happens.
+      locateCallerByPhone(state, '+15550009999');
+      await session.start({ agent: createVerificationAgent() });
+
+      const result = await session
+        .run({ userInput: 'Hi, I got a voicemail from this number about some account?' })
+        .wait();
+
+      expect(state.accountId).toBeUndefined();
+      await lastAssistantMessage(result).judge(judgeLlm, {
+        intent: dedent`
+        Asks the caller for their account number or the phone number associated with
+        the account, to locate it. Must NOT claim to already know who the caller is,
+        and must NOT mention any balance, debt amount, or account details.
+      `,
+      });
+    },
+  );
 
   it('greets as Nancy from Alpha Bank', { timeout: 60000 }, async () => {
     await session.start({ agent: createVerificationAgent() });

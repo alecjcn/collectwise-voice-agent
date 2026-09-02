@@ -1,5 +1,6 @@
 import { ServerOptions, cli, defineAgent, inference, voice } from '@livekit/agents';
 import { audioEnhancement } from '@livekit/plugins-ai-coustics';
+import { ParticipantKind } from '@livekit/rtc-node';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { createVerificationAgent } from './agents/verificationAgent.ts';
@@ -7,7 +8,7 @@ import { openDb } from './db/db.ts';
 import { Repository } from './db/repository.ts';
 import { DEFAULT_DB_PATH, seedIfEmpty } from './db/seed.ts';
 import type { CallState } from './state.ts';
-import { createCallState } from './state.ts';
+import { createCallState, locateCallerByPhone } from './state.ts';
 import { Tracer } from './trace.ts';
 
 // Load environment variables from a local file.
@@ -79,9 +80,30 @@ export default defineAgent({
       trace.event('call_ended', {});
     });
 
+    // Join the room, then identify the caller before the session starts.
+    await ctx.connect();
+    const participant = await ctx.waitForParticipant();
+
+    // Caller ID: real telephony calls carry the caller's number as the
+    // sip.phoneNumber participant attribute; for browser/dev calls, the
+    // INCOMING_NUMBER env var mocks it. If the number matches an account,
+    // prefill the account id + first name (nothing more) so Nancy can go
+    // straight to right-party confirmation. Unknown numbers fall back to
+    // asking for an account number or the phone number on file.
+    const sipNumber =
+      participant.kind === ParticipantKind.SIP
+        ? participant.attributes['sip.phoneNumber']
+        : undefined;
+    const incomingNumber = sipNumber ?? process.env.INCOMING_NUMBER;
+    const locatedAccount = incomingNumber
+      ? locateCallerByPhone(userData, incomingNumber)
+      : undefined;
+
     // Calls always begin in the unverified state.
     await session.start({
-      agent: createVerificationAgent(),
+      agent: createVerificationAgent(
+        userData.debtorFirstName ? { locatedFirstName: userData.debtorFirstName } : undefined,
+      ),
       room: ctx.room,
       inputOptions: {
         // ai-coustics QUAIL audio enhancement for noise cancellation
@@ -89,13 +111,11 @@ export default defineAgent({
       },
     });
 
-    // Join the room and connect to the user
-    await ctx.connect();
-
     // Greet the caller on joining
     session.generateReply({
-      instructions:
-        'Greet the caller: introduce yourself as Nancy from Alpha Bank and ask how you can help them today. Do not mention any account details.',
+      instructions: locatedAccount
+        ? `Greet the caller: introduce yourself as Nancy from Alpha Bank and politely ask whether you are speaking with ${userData.debtorFirstName}. Do not mention any account details or why you are asking.`
+        : 'Greet the caller: introduce yourself as Nancy from Alpha Bank and ask how you can help them today. Do not mention any account details.',
     });
   },
 });

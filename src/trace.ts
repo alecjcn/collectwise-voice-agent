@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 export type TraceEventType =
   | 'call_started'
+  | 'caller_lookup'
   | 'tool_call'
   | 'tool_result'
   | 'tool_error'

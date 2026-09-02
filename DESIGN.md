@@ -89,9 +89,10 @@ installments sum exactly to the balance), `minSettlementCents` (ceil of 80%),
 
 - **Shared voice rules** (`src/prompts.ts`): plain-text-only output, brief turns, spell out
   numbers, professional/calm/concise tone, honesty about being an AI assistant if asked.
-- **VerificationAgent**: greet as Nancy from Alpha Bank → locate account (account number or
-  phone) → confirm right party using first name only → verify full name + SSN last 4 → hand
-  off. Explicit rules for: wrong person (no disclosure, record outcome, end), 3 failed
+- **VerificationAgent**: greet as Nancy from Alpha Bank → locate the account (caller ID via
+  `sip.phoneNumber`, mocked by `INCOMING_NUMBER`; else account number or phone via the
+  lookup tool) → confirm right party using first name only → verify full name + SSN last 4 →
+  hand off. Explicit rules for: wrong person (no disclosure, record outcome, end), 3 failed
   attempts (record `verification_failed`, end), account not found (retry once, then
   escalate/record), human request (escalate). The prompt never contains account data;
   `lookupAccount` returns only the first name.
