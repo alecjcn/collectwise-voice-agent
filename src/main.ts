@@ -86,8 +86,13 @@ export default defineAgent({
     // match lets Nancy open with right-party confirmation; otherwise she asks
     // for an account number. Caller ID locates but never verifies.
     await ctx.connect();
-    const participant = await ctx.waitForParticipant();
-    const incomingNumber = resolveIncomingNumber(participant);
+    let incomingNumber: string | undefined;
+    try {
+      incomingNumber = resolveIncomingNumber(await ctx.waitForParticipant());
+    } catch {
+      // Console mode has no room connection; use the INCOMING_NUMBER mock.
+      incomingNumber = process.env.INCOMING_NUMBER;
+    }
     const account = incomingNumber ? locateCallerByPhone(userData, incomingNumber) : undefined;
     const firstName = account ? firstNameOf(account.debtorName) : undefined;
 
