@@ -1,9 +1,8 @@
 import { llm, voice } from '@livekit/agents';
 import { z } from 'zod';
-import { MAX_VERIFICATION_ATTEMPTS, namesMatch } from '../policy.ts';
+import { MAX_VERIFICATION_ATTEMPTS, firstNameOf, namesMatch } from '../policy.ts';
 import { VERIFICATION_INSTRUCTIONS, VOICE_RULES, callerLocatedContext } from '../prompts.ts';
 import type { CallState } from '../state.ts';
-import { attachLocatedAccount } from '../state.ts';
 import { escalateToHuman, recordCallOutcome, traced } from '../tools/shared.ts';
 import { createNegotiationAgent } from './negotiationAgent.ts';
 
@@ -37,15 +36,16 @@ const lookupAccount = llm.tool({
       }
       return 'No matching account was found. Ask the caller to double-check the number and try once more.';
     }
-    attachLocatedAccount(state, account);
-    return `Account located. The first name on file is ${state.debtorFirstName}. Confirm you are speaking with ${state.debtorFirstName}, then verify their identity before discussing anything about the account.`;
+    state.account = account;
+    const firstName = firstNameOf(account.debtorName);
+    return `Account located. The first name on file is ${firstName}. Confirm you are speaking with ${firstName}, then verify their identity before discussing anything about the account.`;
   }),
 });
 
 const verifyIdentity = llm.tool({
   name: 'verifyIdentity',
   description:
-    "Verify the caller's identity using their full name and the last four digits of their social security number. Only call after lookupAccount has located an account and the caller has confirmed they are the account holder. Three attempts are allowed in total.",
+    "Verify the caller's identity using their full name and the last four digits of their social security number. Only call after an account has been located and the caller has confirmed they are the account holder. Three attempts are allowed in total.",
   parameters: z.object({
     fullName: z.string().describe('The full name the caller stated'),
     last4Ssn: z
@@ -55,7 +55,8 @@ const verifyIdentity = llm.tool({
   }),
   execute: traced('verifyIdentity', async ({ fullName, last4Ssn }, { ctx }) => {
     const state = ctx.userData;
-    if (state.accountId === undefined) {
+    const account = state.account;
+    if (!account) {
       return 'No account has been located yet. Use lookupAccount first.';
     }
     if (state.verified) {
@@ -64,12 +65,10 @@ const verifyIdentity = llm.tool({
     if (state.verificationAttempts >= MAX_VERIFICATION_ATTEMPTS) {
       return 'No verification attempts remain. Tell the caller you cannot discuss the account today and end the call politely.';
     }
-    const account = state.repo.getAccountById(state.accountId);
-    if (!account) {
-      return 'The account could not be loaded. Offer to escalate to a specialist.';
-    }
 
     state.verificationAttempts += 1;
+    // The comparison happens here, in code: the stored digits never reach the
+    // model, so it can only ever relay match / no match.
     const success = namesMatch(fullName, account.debtorName) && last4Ssn === account.last4Ssn;
     state.repo.recordVerificationAttempt({
       callId: state.callId,
@@ -77,18 +76,11 @@ const verifyIdentity = llm.tool({
       providedName: fullName,
       success,
     });
-    state.trace.event('verification', {
-      attempt: state.verificationAttempts,
-      success,
-    });
+    state.trace.event('verification', { attempt: state.verificationAttempts, success });
 
     if (success) {
       state.verified = true;
-      state.account = account;
       state.trace.event('state_transition', { from: 'unverified', to: 'verified' });
-      // The caller is now verified, so the negotiation agent is created with
-      // the account details injected into its instructions — the first
-      // verified turn needs no getAccountDetails round-trip.
       return llm.handoff({
         agent: createNegotiationAgent({ chatCtx: ctx.session.chatCtx, account }),
         returns: 'Identity verified successfully.',
@@ -114,9 +106,13 @@ const verifyIdentity = llm.tool({
 });
 
 /**
- * @param options.locatedFirstName - set when caller-ID lookup already matched
- * an account; skips the account-number ask and goes straight to right-party
- * confirmation + identity verification.
+ * Agent for the unverified phase of a call: locate the account and verify the
+ * caller's identity. Its tools cannot return account details, so nothing in
+ * this phase can disclose them.
+ *
+ * @param options.locatedFirstName - Set when caller-ID lookup already matched
+ * an account; skips the account-number ask and opens with right-party
+ * confirmation.
  */
 export function createVerificationAgent(options?: {
   locatedFirstName?: string;

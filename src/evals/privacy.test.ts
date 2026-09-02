@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNegotiationAgent } from '../agents/negotiationAgent.ts';
 import { createVerificationAgent } from '../agents/verificationAgent.ts';
+import { firstNameOf } from '../policy.ts';
 import { createTestState, markVerified } from './helpers.ts';
 
 // The stored SSN digits must never be able to leak into a prompt: the LLM can
@@ -11,7 +12,7 @@ describe('prompt privacy: stored secrets never enter instructions', () => {
     const state = createTestState();
     const account = markVerified(state, 'ATL-1001');
 
-    const agent = createVerificationAgent({ locatedFirstName: state.debtorFirstName! });
+    const agent = createVerificationAgent({ locatedFirstName: firstNameOf(account.debtorName) });
     const instructions = String(agent.instructions);
 
     expect(instructions).toContain('Maria'); // first name is the only PII allowed

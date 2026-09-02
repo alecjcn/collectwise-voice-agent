@@ -52,7 +52,7 @@ export const escalateToHuman = llm.tool({
     const state = ctx.userData;
     state.repo.recordEscalation({
       callId: state.callId,
-      accountId: state.accountId,
+      accountId: state.account?.id,
       reason,
       details,
     });
@@ -86,7 +86,7 @@ export const recordCallOutcome = llm.tool({
     }
     state.repo.recordOutcome({
       callId: state.callId,
-      accountId: state.accountId,
+      accountId: state.account?.id,
       outcome,
       notes,
     });

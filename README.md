@@ -209,7 +209,9 @@ collection); hardship empathy; human escalation; angry caller; zero-balance acco
 
 ## Observability
 
-Every call writes a JSONL trace to `logs/trace-<callId>.jsonl` (see
+Tracing rides on the SDK's pino logger: each call gets a child logger with the `callId`
+bound to every line, so events flow to stdout and LiveKit Cloud observability with no extra
+plumbing, and are also appended per call to `logs/trace-<callId>.jsonl` (see
 [examples/](examples/) for a real one). Every tool is wrapped by `traced()`, and semantic
 events are emitted at each decision point:
 

@@ -88,6 +88,18 @@ export function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, '').slice(-10);
 }
 
+/** Mask a phone number for logs, keeping only the last 4 digits. */
+export function maskPhone(phone: string): string {
+  const total = phone.replace(/\D/g, '').length;
+  let seen = 0;
+  return phone.replace(/\d/g, (digit) => (++seen <= total - 4 ? '*' : digit));
+}
+
+/** First name from a stored full name, for right-party confirmation. */
+export function firstNameOf(fullName: string): string {
+  return fullName.trim().split(/\s+/)[0] ?? fullName;
+}
+
 export function formatCents(cents: number): string {
   return (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }

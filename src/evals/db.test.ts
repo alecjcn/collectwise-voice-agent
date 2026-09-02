@@ -93,8 +93,7 @@ describe('caller-ID lookup (locateCallerByPhone)', () => {
     const account = locateCallerByPhone(state, '555-010-4821');
 
     expect(account?.debtorName).toBe('Maria Gonzalez');
-    expect(state.accountId).toBe(account!.id);
-    expect(state.debtorFirstName).toBe('Maria');
+    expect(state.account?.id).toBe(account!.id);
     expect(state.incomingNumber).toBe('555-010-4821');
     // The full row is cached in process memory for the post-verification agent.
     expect(state.account?.balanceCents).toBe(248975);
@@ -107,9 +106,7 @@ describe('caller-ID lookup (locateCallerByPhone)', () => {
     const account = locateCallerByPhone(state, '555-000-9999');
 
     expect(account).toBeUndefined();
-    expect(state.accountId).toBeUndefined();
     expect(state.account).toBeUndefined();
-    expect(state.debtorFirstName).toBeUndefined();
     expect(state.verified).toBe(false);
   });
 });

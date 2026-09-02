@@ -1,13 +1,17 @@
-import type { voice } from '@livekit/agents';
+import { initializeLogger, type voice } from '@livekit/agents';
 import dotenv from 'dotenv';
 import { openDb } from '../db/db.ts';
 import { type Account, Repository } from '../db/repository.ts';
 import { seedIfEmpty } from '../db/seed.ts';
-import { type CallState, attachLocatedAccount, createCallState } from '../state.ts';
+import { type CallState, createCallState } from '../state.ts';
 import { Tracer } from '../trace.ts';
 
 // LiveKit Inference credentials for the agent LLM and the judge.
 dotenv.config({ path: '.env.local' });
+
+// The SDK logger must be initialized before any Tracer is constructed; 'warn'
+// keeps info-level trace events out of test output.
+initializeLogger({ pretty: false, level: 'warn' });
 
 /** The model driving the agent under test — same default as production. */
 export const AGENT_MODEL = process.env.LLM_MODEL ?? 'google/gemma-4-31b-it';
@@ -44,7 +48,7 @@ export function createTestState(): CallState {
   const repo = new Repository(openDb(':memory:'));
   seedIfEmpty(repo);
   const callId = `test-${++testCounter}`;
-  return createCallState({ callId, repo, trace: new Tracer({ callId, silent: true }) });
+  return createCallState({ callId, repo, trace: new Tracer(callId) });
 }
 
 /**
@@ -65,6 +69,6 @@ export function markVerified(state: CallState, accountNumber = 'ATL-1001'): Acco
 export function markLocated(state: CallState, accountNumber = 'ATL-1001'): Account {
   const account = state.repo.findAccountByNumber(accountNumber);
   if (!account) throw new Error(`Seed account ${accountNumber} not found`);
-  attachLocatedAccount(state, account);
+  state.account = account;
   return account;
 }

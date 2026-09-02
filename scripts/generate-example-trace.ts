@@ -17,7 +17,7 @@ const repo = new Repository(openDb(':memory:'));
 seedIfEmpty(repo);
 
 const callId = 'example-negotiated-plan';
-const trace = new Tracer({ callId, dir: 'examples', silent: true });
+const trace = new Tracer(callId, { dir: 'examples' });
 const state: CallState = createCallState({ callId, repo, trace });
 
 const llm = new inference.LLM({ model: process.env.LLM_MODEL ?? 'google/gemma-4-31b-it' });
@@ -55,4 +55,4 @@ await session.close();
 await llm.aclose();
 console.log(`\nTrace written to examples/trace-${callId}.jsonl`);
 console.log('Outcomes:', repo.listOutcomes(callId));
-console.log('Plans:', state.accountId !== undefined ? repo.listPaymentPlans(state.accountId) : []);
+console.log('Plans:', state.account ? repo.listPaymentPlans(state.account.id) : []);

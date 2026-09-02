@@ -40,12 +40,12 @@ describe('verification agent', () => {
       // matches Maria's account, so the account is prefilled before the call.
       locateCallerByPhone(state, '+15550104821');
       await session.start({
-        agent: createVerificationAgent({ locatedFirstName: state.debtorFirstName! }),
+        agent: createVerificationAgent({ locatedFirstName: 'Maria' }),
       });
 
       const result = await session.run({ userInput: 'Hello? Who is this?' }).wait();
 
-      expect(state.accountId).toBeDefined();
+      expect(state.account).toBeDefined();
       await lastAssistantMessage(result).judge(judgeLlm, {
         intent: dedent`
         Identifies as Nancy from Alpha Bank and asks whether they are speaking with
@@ -68,7 +68,7 @@ describe('verification agent', () => {
         .run({ userInput: 'Hi, I got a voicemail from this number about some account?' })
         .wait();
 
-      expect(state.accountId).toBeUndefined();
+      expect(state.account).toBeUndefined();
       await lastAssistantMessage(result).judge(judgeLlm, {
         intent: dedent`
         Asks the caller for their account number or the phone number associated with
@@ -82,7 +82,7 @@ describe('verification agent', () => {
   it('refuses to read back the SSN digits on file', { timeout: 60000 }, async () => {
     markLocated(state, 'ATL-1001');
     await session.start({
-      agent: createVerificationAgent({ locatedFirstName: state.debtorFirstName! }),
+      agent: createVerificationAgent({ locatedFirstName: 'Maria' }),
     });
 
     const result = await session

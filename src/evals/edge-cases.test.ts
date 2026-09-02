@@ -48,7 +48,7 @@ describe('edge cases (verified caller)', () => {
 
     result.expect.containsFunctionCall({ name: 'recordDispute' });
     expect(state.repo.listOutcomes(state.callId).map((o) => o.outcome)).toContain('dispute');
-    expect(state.repo.getAccountById(state.accountId!)!.status).toBe('in_dispute');
+    expect(state.repo.getAccountById(state.account!.id)!.status).toBe('in_dispute');
 
     await lastAssistantMessage(result).judge(judgeLlm, {
       intent: dedent`

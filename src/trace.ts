@@ -1,6 +1,8 @@
+import { log } from '@livekit/agents';
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
+/** Semantic event types recorded for every call. */
 export type TraceEventType =
   | 'call_started'
   | 'caller_lookup'
@@ -16,44 +18,37 @@ export type TraceEventType =
   | 'transcript'
   | 'call_ended';
 
-export interface TracerOptions {
-  callId: string;
-  /** Directory for the JSONL trace file. Omit (with silent) for tests. */
-  dir?: string;
-  /** Suppress console output (used in tests). */
-  silent?: boolean;
-}
-
 /**
- * Per-call structured trace. Every event is appended as one JSON line to
- * logs/trace-<callId>.jsonl and echoed to the console in dev, giving a
- * reviewable record of state transitions, tool activity, and decisions.
+ * Per-call trace built on the SDK's pino logger: a child logger binds the
+ * `callId` to every line, so events flow to stdout (pretty in dev, JSON in
+ * production) and to LiveKit Cloud observability with no extra plumbing.
+ *
+ * When a directory is given, events are also appended to
+ * `<dir>/trace-<callId>.jsonl` for offline, per-call inspection.
  */
 export class Tracer {
   readonly callId: string;
+  private readonly logger: ReturnType<typeof log>;
   private readonly filePath?: string;
-  private readonly silent: boolean;
 
-  constructor(options: TracerOptions) {
-    this.callId = options.callId;
-    this.silent = options.silent ?? false;
-    if (options.dir) {
+  constructor(callId: string, options?: { dir?: string }) {
+    this.callId = callId;
+    this.logger = log().child({ callId });
+    if (options?.dir) {
       mkdirSync(options.dir, { recursive: true });
-      this.filePath = join(options.dir, `trace-${options.callId}.jsonl`);
+      this.filePath = join(options.dir, `trace-${callId}.jsonl`);
     }
   }
 
+  /** Record one semantic event. Must never throw into a live call. */
   event(type: TraceEventType, data: Record<string, unknown> = {}): void {
-    const entry = { ts: new Date().toISOString(), callId: this.callId, type, ...data };
-    if (this.filePath) {
-      try {
-        appendFileSync(this.filePath, JSON.stringify(entry) + '\n');
-      } catch {
-        // Tracing must never break a live call.
-      }
-    }
-    if (!this.silent) {
-      console.log(`[trace] ${type} ${JSON.stringify(data)}`);
+    this.logger.info({ trace: type, ...data }, `[trace] ${type}`);
+    if (!this.filePath) return;
+    try {
+      const line = { ts: new Date().toISOString(), callId: this.callId, type, ...data };
+      appendFileSync(this.filePath, JSON.stringify(line) + '\n');
+    } catch (error) {
+      this.logger.warn({ error }, 'failed to append trace file');
     }
   }
 }

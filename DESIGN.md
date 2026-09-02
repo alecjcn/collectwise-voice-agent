@@ -48,9 +48,10 @@ Guardrails are enforced in **two layers**:
 
 ### Session state
 
-Typed `userData` on the `AgentSession` (`CallState` in `src/state.ts`): `callId`, `accountId`,
-the cached `account` row, `verified`, `verificationAttempts`, `lookupFailures`, `escalated`,
-`outcomeRecorded`, plus injected dependencies (`repo`, `trace`). `userData` is never visible
+Typed `userData` on the `AgentSession` (`CallState` in `src/state.ts`): `callId`, the cached
+`account` row (the single source for id/name/balance), `verified`, `verificationAttempts`,
+`lookupFailures`, `escalated`, `outcomeRecorded`, plus injected dependencies (`repo`,
+`trace`). `userData` is never visible
 to the LLM — data reaches a prompt only where code puts it: pre-verification, only the first
 name; post-verification, the account details are injected into the NegotiationAgent's
 instructions at handoff (no tool round-trip for the first verified turn). Injecting the repository and tracer through `userData`
@@ -111,8 +112,10 @@ installments sum exactly to the balance), `minSettlementCents` (ceil of 80%),
 
 ## Observability
 
-`src/trace.ts`: a per-call `Tracer` writing JSONL to `logs/trace-<callId>.jsonl` (and pretty
-console lines in dev). Every tool is wrapped by `traced()` which logs `tool_call`,
+`src/trace.ts`: a thin per-call `Tracer` over the SDK's pino logger — a child logger binds
+`callId` to every line, so events reach stdout (pretty in dev, JSON in production) and
+LiveKit Cloud observability automatically; a JSONL file per call
+(`logs/trace-<callId>.jsonl`) is also written for offline inspection. Every tool is wrapped by `traced()` which logs `tool_call`,
 `tool_result` / `tool_error`, and `handoff` events automatically; tools additionally emit
 semantic events: `verification` (per attempt + status), `state_transition`
 (unverified → verified), `plan_decision`, `escalation`, `outcome`. The DB rows are the

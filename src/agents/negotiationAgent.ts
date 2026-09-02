@@ -1,7 +1,12 @@
 import { llm, voice } from '@livekit/agents';
 import { z } from 'zod';
 import type { Account } from '../db/repository.ts';
-import { computeInstallmentPlan, formatCents, validateSettlementOffer } from '../policy.ts';
+import {
+  computeInstallmentPlan,
+  firstNameOf,
+  formatCents,
+  validateSettlementOffer,
+} from '../policy.ts';
 import { NEGOTIATION_INSTRUCTIONS, VOICE_RULES } from '../prompts.ts';
 import type { CallState } from '../state.ts';
 import { escalateToHuman, recordCallOutcome, traced } from '../tools/shared.ts';
@@ -36,19 +41,20 @@ function handoffToVerification(state: CallState) {
   });
   return llm.handoff({
     agent: createVerificationAgent(
-      state.debtorFirstName ? { locatedFirstName: state.debtorFirstName } : undefined,
+      state.account ? { locatedFirstName: firstNameOf(state.account.debtorName) } : undefined,
     ),
     returns:
-      'NOT ALLOWED: identity verification is not complete. Do not state any balance, amount, or account detail, and do not invent figures. Ask the caller to verify their identity first.',
+      'NOT ALLOWED: identity is not verified, so no account information exists to share. Respond with exactly this sentence and nothing else: "Before I can share any account information, I need to verify your identity. Could I have your full name and the last four digits of your social security number?"',
   });
 }
 
 /** Returns the verified account, an unverified marker, or an error string. */
 function requireVerifiedAccount(state: CallState) {
-  if (!state.verified || state.accountId === undefined) {
+  if (!state.verified || !state.account) {
     return { unverified: true as const };
   }
-  const account = state.repo.getAccountById(state.accountId);
+  // Re-read from the database so mid-call changes (e.g. a dispute) are seen.
+  const account = state.repo.getAccountById(state.account.id);
   if (!account) {
     return { error: 'The account could not be loaded. Offer to escalate to a specialist.' };
   }

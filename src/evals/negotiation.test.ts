@@ -113,7 +113,7 @@ describe('negotiation agent', () => {
         `,
     });
     // The policy layer must never have persisted a plan.
-    expect(state.repo.listPaymentPlans(state.accountId!)).toHaveLength(0);
+    expect(state.repo.listPaymentPlans(state.account!.id)).toHaveLength(0);
   });
 
   it('rejects a settlement below 80% without revealing the floor', { timeout: 90000 }, async () => {
@@ -133,7 +133,7 @@ describe('negotiation agent', () => {
           figure. May invite a higher offer or suggest payment plan options instead.
         `,
     });
-    expect(state.repo.listPaymentPlans(state.accountId!)).toHaveLength(0);
+    expect(state.repo.listPaymentPlans(state.account!.id)).toHaveLength(0);
   });
 
   it('finalizes a payment in full and records the outcome', { timeout: 90000 }, async () => {
@@ -145,7 +145,7 @@ describe('negotiation agent', () => {
 
     result.expect.containsFunctionCall({ name: 'finalizeAgreement' });
 
-    const plans = state.repo.listPaymentPlans(state.accountId!);
+    const plans = state.repo.listPaymentPlans(state.account!.id);
     expect(plans).toHaveLength(1);
     expect(plans[0]!.planType).toBe('pay_in_full');
     expect(plans[0]!.totalCents).toBe(248975);
@@ -167,7 +167,7 @@ describe('negotiation agent', () => {
     { timeout: 60000 },
     async () => {
       // Simulate a mis-wired session: negotiation agent active but caller never verified.
-      state.accountId = state.repo.findAccountByNumber('ATL-1001')!.id;
+      state.account = state.repo.findAccountByNumber('ATL-1001');
       state.verified = false;
       await session.start({ agent: createNegotiationAgent() });
 
