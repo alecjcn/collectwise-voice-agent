@@ -1,4 +1,4 @@
-import { dedent, inference, initializeLogger, voice } from '@livekit/agents';
+import { dedent, inference, initializeLogger, llm, voice } from '@livekit/agents';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createNegotiationAgent } from '../agents/negotiationAgent.ts';
 import type { CallState } from '../state.ts';
@@ -217,6 +217,75 @@ describe('negotiation agent', () => {
         `,
     });
   });
+
+  it(
+    'responds to an interruption instead of resuming the cut-off sentence',
+    { timeout: 150000 },
+    async () => {
+      const account = markVerified(state, '300101');
+      const agent = createNegotiationAgent({ account });
+      await session.start({ agent });
+
+      // Drive a real conversation to the agreement recap.
+      await session
+        .run({
+          userInput:
+            "There's no way I can pay that all at once. Could I do monthly payments over two years?",
+        })
+        .wait();
+      await session.run({ userInput: "Yes, that works for me. Let's set that up." }).wait();
+      expect(state.outcomeRecorded).toBe(true);
+
+      // Reproduce what the framework commits when the caller interrupts
+      // playout: the recap message is truncated to the words actually spoken
+      // (cut mid-sentence) and flagged interrupted. No other signal exists.
+      const chatCtx = agent.chatCtx.copy();
+      const recap = [...chatCtx.items]
+        .reverse()
+        .find(
+          (item): item is llm.ChatMessage =>
+            item.type === 'message' && item.role === 'assistant' && !!item.textContent,
+        );
+      expect(recap).toBeDefined();
+      const words = (recap!.textContent ?? '').split(/\s+/);
+      expect(words.length).toBeGreaterThan(8);
+      const spoken = words
+        .slice(0, Math.ceil(words.length * 0.6))
+        .join(' ')
+        .replace(/[.,;!?]+$/, '');
+      recap!.content = [spoken];
+      recap!.interrupted = true;
+      await agent.updateChatCtx(chatCtx);
+
+      // The caller interrupted the recap to confirm the terms.
+      const result = await session.run({ userInput: 'Okay. Alright. Yeah. That works.' }).wait();
+
+      // A verbatim resume continues the cut-off sentence in lowercase; a real
+      // response starts a fresh sentence.
+      const firstReply = result.events.find(
+        (e) => e.type === 'message' && e.item.role === 'assistant' && e.item.textContent,
+      );
+      expect(firstReply).toBeDefined();
+      expect((firstReply!.type === 'message' && firstReply!.item.textContent) || '').toMatch(
+        /^\s*[A-Z]/,
+      );
+
+      await judgeTurn(judgeLlm, result, {
+        intent: dedent`
+          Context: the agent was reciting the final agreement recap when the caller
+          interrupted it mid-sentence to say the terms work for them, so the agent's
+          previous message was cut off. The turn being judged is what the agent said
+          next. A passing turn engages with the caller's confirmation and moves the
+          call forward: briefly confirming the agreement is in place, mentioning the
+          secure payment link, asking if anything else is needed, and/or saying
+          goodbye. The ONLY failures are: (a) the turn reads as a continuation of the
+          cut-off sentence rather than a fresh response to the caller, or (b) the
+          turn re-recites the full plan terms in detail again as if the caller had
+          not already confirmed them.
+        `,
+      });
+    },
+  );
 
   it(
     'does not reveal details if the verified flag was never set (defense in depth)',

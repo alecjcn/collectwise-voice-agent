@@ -69,9 +69,11 @@ describe('verification agent', () => {
         intent: dedent`
         Asks the caller for their account number or the phone number associated with
         the account, to locate it. Asking who it is speaking with is also correct,
-        expected behavior. The only failures are addressing the caller by a specific
-        name as if already known, or mentioning any balance, debt amount, or account
-        details.
+        expected behavior, and the agent introducing ITSELF by name (for example
+        "This is Nancy from Alpha Bank") is always fine. The only failures are
+        addressing the CALLER by a specific personal name as if the caller's own
+        identity were already known, or mentioning any balance, debt amount, or
+        account details.
       `,
       });
     },
@@ -277,7 +279,8 @@ describe('verification agent', () => {
       await judgeTurn(judgeLlm, result, {
         intent: dedent`
         Asks only for the last four digits of the caller's social security number.
-        Must NOT ask the caller to confirm or repeat their name, and must NOT ask
+        Addressing the caller by their name is fine and expected. The only two
+        failures are: asking the caller to confirm or repeat their name, or asking
         for the account number again.
       `,
       });

@@ -42,10 +42,15 @@ export function traced<A, R>(
 export function createEndCall() {
   return beta.createEndCallTool<CallState>({
     extraDescription:
-      'Also call this after wrapping up a completed call: an outcome must already be recorded (finalizeAgreement or recordCallOutcome) and you must have said goodbye first. Never call it in the same turn as finalizeAgreement - the caller must hear the recap and respond before the call ends.',
-    // The default endInstructions ("say goodbye to the user") solicits a second
-    // farewell; our prompts already require the goodbye before hanging up.
-    endInstructions: 'The call is over. Do not say anything else.',
+      'Also call this after wrapping up a completed call: an outcome must already be recorded (finalizeAgreement or recordCallOutcome) and you must have said goodbye first. The call cuts off the moment your current speech finishes, so your goodbye MUST already be spoken: either in an earlier message, or as text you generate in this same turn BEFORE calling end_call. Never call end_call from a turn with no spoken text unless you already said goodbye - a silent hangup is never acceptable. Never call it in the same turn as finalizeAgreement - the caller must hear the recap and respond before the call ends.',
+    // This instruction fills the one reply generated after end_call. It must
+    // handle both cases: rescue a silent hangup (the model sometimes calls
+    // end_call without having spoken) with a goodbye, while producing nothing
+    // when the goodbye was already said - the default ("say goodbye to the
+    // user") caused duplicate farewells, and an unconditional "say nothing"
+    // led small models to fall back on their base instructions and re-greet.
+    endInstructions:
+      'The line is disconnecting. If your last message already said goodbye, output nothing at all - no greeting, no question, not one word. Only if you have not said goodbye yet, say one brief goodbye sentence now.',
     ignoreOnEnter: true,
     onToolCalled: ({ ctx }) => {
       ctx.userData.trace.event('end_call', { by: 'agent' });
@@ -121,6 +126,6 @@ export const recordCallOutcome = llm.tool({
     });
     state.outcomeRecorded = true;
     state.trace.event('outcome', { outcome, notes });
-    return `Outcome recorded as ${outcome}. Wrap up and end the call politely.`;
+    return `Outcome recorded as ${outcome}. Say a brief goodbye to the caller now, then call end_call - never hang up without the spoken goodbye.`;
   }),
 });
