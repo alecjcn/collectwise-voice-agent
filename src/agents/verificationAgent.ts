@@ -1,6 +1,6 @@
 import { llm, voice } from '@livekit/agents';
 import { z } from 'zod';
-import { MAX_VERIFICATION_ATTEMPTS, firstNameOf, namesMatch } from '../policy.ts';
+import { MAX_VERIFICATION_ATTEMPTS, firstNameOf } from '../policy.ts';
 import { VERIFICATION_INSTRUCTIONS, VOICE_RULES, callerLocatedContext } from '../prompts.ts';
 import type { CallState } from '../state.ts';
 import { createEndCall, escalateToHuman, recordCallOutcome, traced } from '../tools/shared.ts';
@@ -45,15 +45,14 @@ const lookupAccount = llm.tool({
 const verifyIdentity = llm.tool({
   name: 'verifyIdentity',
   description:
-    "Verify the caller's identity using their full name and the last four digits of their social security number. Only call after an account has been located and the caller has confirmed they are the account holder. Three attempts are allowed in total.",
+    "Verify the caller's identity using the last four digits of their social security number. Only call after an account has been located and the caller has confirmed they are the account holder. Three attempts are allowed in total.",
   parameters: z.object({
-    fullName: z.string().describe('The full name the caller stated'),
     last4Ssn: z
       .string()
       .regex(/^\d{4}$/)
       .describe('The last four digits of the social security number, exactly four digits'),
   }),
-  execute: traced('verifyIdentity', async ({ fullName, last4Ssn }, { ctx }) => {
+  execute: traced('verifyIdentity', async ({ last4Ssn }, { ctx }) => {
     const state = ctx.userData;
     const account = state.account;
     if (!account) {
@@ -68,14 +67,11 @@ const verifyIdentity = llm.tool({
 
     state.verificationAttempts += 1;
     // The comparison happens here, in code: the stored digits never reach the
-    // model, so it can only ever relay match / no match.
-    const success = namesMatch(fullName, account.debtorName) && last4Ssn === account.last4Ssn;
-    state.repo.recordVerificationAttempt({
-      callId: state.callId,
-      accountId: account.id,
-      providedName: fullName,
-      success,
-    });
+    // model, so it can only ever relay match / no match. Names are deliberately
+    // not compared - STT garbles surnames, and the right party was already
+    // confirmed by first name.
+    const success = last4Ssn === account.last4Ssn;
+    state.repo.recordVerificationAttempt({ callId: state.callId, accountId: account.id, success });
     state.trace.event('verification', { attempt: state.verificationAttempts, success });
 
     if (success) {

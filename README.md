@@ -122,7 +122,7 @@ Caller ID only _locates_ — it never verifies; the balance stays locked until t
 **Two agents, one handoff at the trust boundary.** The call starts in the
 `VerificationAgent`, whose tools _cannot return account details at all_ —
 `lookupAccount` returns only a first name so Nancy can confirm the right party. A successful
-`verifyIdentity` (full name + SSN last 4, max 3 attempts, every attempt audited in the DB)
+`verifyIdentity` (SSN last 4, max 3 attempts, every attempt audited in the DB)
 flips the `verified` flag and hands off to the `NegotiationAgent` via `llm.handoff()`,
 carrying the chat context. This is the "different permissions" agent-split pattern from the
 LiveKit workflows guide: the unverified state can't leak what it never has.
@@ -199,9 +199,8 @@ collection); hardship empathy; human escalation; angry caller; zero-balance acco
   this rare; the DB assertions are the hard backstop.
 - Exact _turn timing_ of tool calls isn't pinned (e.g. the model may confirm before looking
   up); evals assert the call happened in the turn, not its position.
-- Verification compares name tokens + SSN last 4 only — no fuzzy matching for STT
-  mis-transcriptions of names (a real system would verify against DOB/address too and handle
-  transcription distance).
+- Verification is a single knowledge factor (SSN last 4) plus right-party confirmation and
+  caller ID. A real system would add DOB/address as further factors.
 - Multi-turn _audio_ behavior (interruptions, turn detection) isn't covered — text-mode evals
   only. LiveKit's simulation framework is Python-only today.
 - Small-model hallucination is the sharpest failure mode we found: before the
@@ -218,7 +217,7 @@ plumbing, and are also appended per call to `logs/trace-<callId>.jsonl` (see
 events are emitted at each decision point:
 
 ```jsonl
-{"ts":"…","callId":"…","type":"tool_call","name":"verifyIdentity","args":{"fullName":"Maria Gonzalez","last4Ssn":"7301"}}
+{"ts":"…","callId":"…","type":"tool_call","name":"verifyIdentity","args":{"last4Ssn":"7301"}}
 {"ts":"…","callId":"…","type":"verification","attempt":1,"success":true}
 {"ts":"…","callId":"…","type":"state_transition","from":"unverified","to":"verified"}
 {"ts":"…","callId":"…","type":"handoff","via":"verifyIdentity","to":"negotiation"}
@@ -270,7 +269,8 @@ Postgres behind the same `Repository` interface (it's the only file that knows t
 
 - Caller ID (`sip.phoneNumber`, mocked by `INCOMING_NUMBER` off-telephony) locates the
   account; callers whose number isn't on file identify by account number or phone number.
-  Identity = full name + SSN last 4 in all cases.
+  Identity = SSN last 4 (the right party is first confirmed by first name; surnames are
+  deliberately not compared — STT mangles them and each mangle would burn an attempt).
 - "Transfer to a human" records an escalation with a promised callback, then the agent
   says goodbye and hangs up (prebuilt `end_call` tool: goodbye plays out, session shuts
   down, room is deleted). No live SIP transfer — telephony is out of scope; a `TODO(POC)`

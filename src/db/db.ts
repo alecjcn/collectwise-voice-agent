@@ -19,7 +19,6 @@ CREATE TABLE IF NOT EXISTS verification_attempts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   call_id TEXT NOT NULL,
   account_id INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
-  provided_name TEXT NOT NULL,
   success INTEGER NOT NULL CHECK (success IN (0, 1)),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

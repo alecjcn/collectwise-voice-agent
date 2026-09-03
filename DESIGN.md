@@ -85,8 +85,7 @@ objects; the schema's CHECK constraints are a last line of defense behind `polic
 
 `src/policy.ts`: `computeInstallmentPlan` (ceil per-month, last payment absorbs the remainder so
 installments sum exactly to the balance), `minSettlementCents` (ceil of 80%),
-`validateSettlementOffer`, `namesMatch` (token-based, tolerant of middle names/case),
-`normalizePhone`, `formatCents`. Constants: `MAX_PLAN_MONTHS = 24`,
+`validateSettlementOffer`, `normalizeAccountNumber`, `normalizePhone`, `formatCents`. Constants: `MAX_PLAN_MONTHS = 24`,
 `MIN_SETTLEMENT_RATIO = 0.8`, `MAX_VERIFICATION_ATTEMPTS = 3`.
 
 ## Conversation design (prompting strategy)
@@ -95,7 +94,7 @@ installments sum exactly to the balance), `minSettlementCents` (ceil of 80%),
   numbers, professional/calm/concise tone, honesty about being an AI assistant if asked.
 - **VerificationAgent**: greet as Nancy from Alpha Bank → locate the account (caller ID via
   `sip.phoneNumber`, mocked by `INCOMING_NUMBER`; else account number or phone via the
-  lookup tool) → confirm right party using first name only → verify full name + SSN last 4 →
+  lookup tool) → confirm right party using first name only → verify SSN last 4 →
   hand off. Explicit rules for: wrong person (no disclosure, record outcome, end), 3 failed
   attempts (record `verification_failed`, end), account not found (retry once, then
   escalate/record), human request (escalate). The prompt never contains account data;
@@ -146,7 +145,8 @@ local `pnpm dev` + the same frontend is the fallback path.
 ## Assumptions & tradeoffs
 
 - Caller identifies their account by account number or the phone number on file (no SIP caller
-  ID in scope). Identity = full name + SSN last 4.
+  ID in scope). Identity = SSN last 4; surnames are deliberately not compared (STT
+  garbles them; the right party is confirmed by first name).
 - "Transfer to a human" records an escalation and promises a callback — no live SIP transfer
   (out of scope per the assignment).
 - No FDCPA-specific disclosures (mini-Miranda etc.) beyond privacy-driven behavior; the

@@ -24,7 +24,7 @@ export function callerLocatedContext(firstName: string): string {
   return dedent`
     # Caller context
 
-    The caller's phone number matched an account on file, so the account is already located; do not ask for an account number or phone number. The first name on file is ${firstName}. Begin by confirming you are speaking with ${firstName}, then verify their identity with their full name and the last four digits of their social security number. If they say they are not ${firstName}, follow the wrong person rule. If they say the number no longer belongs to that person, do the same.
+    The caller's phone number matched an account on file, so the account is already located; do not ask for an account number or phone number. The first name on file is ${firstName}. Begin by confirming you are speaking with ${firstName}, then verify their identity with the last four digits of their social security number. If they say they are not ${firstName}, follow the wrong person rule. If they say the number no longer belongs to that person, do the same.
   `;
 }
 
@@ -36,7 +36,7 @@ export const VERIFICATION_INSTRUCTIONS = dedent`
   1. If you have not yet introduced yourself, greet the caller as Nancy from Alpha Bank. Ask how you can help, then ask for either their account number or the phone number associated with their account.
   2. Call lookupAccount with what they provide. If the account is found, the tool returns only a first name.
   3. Confirm you are speaking with the right person: "Am I speaking with {firstName}?" Use only the first name. Do not state a last name, and do not mention why you might be asking beyond it being an account matter.
-  4. If they confirm, explain that for their privacy you need to verify their identity before discussing the account, and ask for their full name and the last four digits of their social security number. Then call verifyIdentity.
+  4. If they confirm, explain that for their privacy you need to verify their identity before discussing the account, and ask for the last four digits of their social security number. Then call verifyIdentity.
   5. When verifyIdentity succeeds, you will be handed off automatically. Do not describe the handoff.
 
   # Rules

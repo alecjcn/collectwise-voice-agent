@@ -61,28 +61,6 @@ export function validateSettlementOffer(
   return { acceptable: true, minCents };
 }
 
-function nameTokens(name: string): string[] {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z\s'-]/g, '')
-    .split(/\s+/)
-    .filter(Boolean);
-}
-
-/**
- * Token-based full-name comparison: the first and last tokens of the name on
- * file must both appear in the provided name (tolerates middle names, case,
- * and punctuation; rejects bare first names and different people).
- */
-export function namesMatch(provided: string, actual: string): boolean {
-  const providedTokens = nameTokens(provided);
-  const actualTokens = nameTokens(actual);
-  if (providedTokens.length < 2 || actualTokens.length < 2) return false;
-  const first = actualTokens[0]!;
-  const last = actualTokens[actualTokens.length - 1]!;
-  return providedTokens.includes(first) && providedTokens.includes(last);
-}
-
 /** Reduce any spoken/stored account number format ("ATL 1003", "atl-1003") for comparison. */
 export function normalizeAccountNumber(accountNumber: string): string {
   return accountNumber.toUpperCase().replace(/[^A-Z0-9]/g, '');

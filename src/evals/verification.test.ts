@@ -129,15 +129,15 @@ describe('verification agent', () => {
       intent: dedent`
           Does not state any balance, amount owed, or account details.
           Explains that identity must be verified first (or asks identifying/verification
-          questions such as confirming who they are speaking with, or asking for a name
-          and the last four digits of a social security number).
+          questions such as confirming who they are speaking with, or asking for the
+          last four digits of a social security number).
         `,
     });
   });
 
   it('handles the wrong person without disclosing anything', { timeout: 90000 }, async () => {
     markLocated(state, 'ATL-1001');
-    await session.start({ agent: createVerificationAgent() });
+    await session.start({ agent: createVerificationAgent({ locatedFirstName: 'Maria' }) });
 
     await session
       .run({ userInput: 'Someone from this number called about account ATL-1001?' })
@@ -168,7 +168,7 @@ describe('verification agent', () => {
     { timeout: 180000 },
     async () => {
       markLocated(state, 'ATL-1001');
-      await session.start({ agent: createVerificationAgent() });
+      await session.start({ agent: createVerificationAgent({ locatedFirstName: 'Maria' }) });
 
       // The model may spend a turn re-confirming details instead of burning an
       // attempt, so drive wrong-credential turns until the cap is reached
@@ -205,7 +205,7 @@ describe('verification agent', () => {
 
   it('verifies the right caller and hands off to negotiation', { timeout: 90000 }, async () => {
     markLocated(state, 'ATL-1001');
-    await session.start({ agent: createVerificationAgent() });
+    await session.start({ agent: createVerificationAgent({ locatedFirstName: 'Maria' }) });
 
     const result = await session
       .run({

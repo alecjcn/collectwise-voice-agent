@@ -101,17 +101,10 @@ export class Repository {
     return row ? rowToAccount(row) : undefined;
   }
 
-  recordVerificationAttempt(input: {
-    callId: string;
-    accountId: number;
-    providedName: string;
-    success: boolean;
-  }): void {
+  recordVerificationAttempt(input: { callId: string; accountId: number; success: boolean }): void {
     this.db
-      .prepare(
-        'INSERT INTO verification_attempts (call_id, account_id, provided_name, success) VALUES (?, ?, ?, ?)',
-      )
-      .run(input.callId, input.accountId, input.providedName, input.success ? 1 : 0);
+      .prepare('INSERT INTO verification_attempts (call_id, account_id, success) VALUES (?, ?, ?)')
+      .run(input.callId, input.accountId, input.success ? 1 : 0);
   }
 
   createPaymentPlan(input: {

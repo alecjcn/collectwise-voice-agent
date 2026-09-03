@@ -44,7 +44,7 @@ function handoffToVerification(state: CallState) {
       state.account ? { locatedFirstName: firstNameOf(state.account.debtorName) } : undefined,
     ),
     returns:
-      'NOT ALLOWED: identity is not verified, so no account information exists to share. Respond with exactly this sentence and nothing else: "Before I can share any account information, I need to verify your identity. Could I have your full name and the last four digits of your social security number?"',
+      'NOT ALLOWED: identity is not verified, so no account information exists to share. Respond with exactly this sentence and nothing else: "Before I can share any account information, I need to verify your identity. Could I have the last four digits of your social security number?"',
   });
 }
 

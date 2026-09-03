@@ -8,7 +8,6 @@ import {
   formatCents,
   maskPhone,
   minSettlementCents,
-  namesMatch,
   normalizePhone,
   validateSettlementOffer,
 } from '../policy.ts';
@@ -75,27 +74,6 @@ describe('settlement floor', () => {
 
   it('rejects offers above the balance (that is a payment, not a settlement)', () => {
     expect(validateSettlementOffer(100000, 120000).acceptable).toBe(false);
-  });
-});
-
-describe('namesMatch', () => {
-  it('matches exact names case-insensitively', () => {
-    expect(namesMatch('maria gonzalez', 'Maria Gonzalez')).toBe(true);
-  });
-
-  it('tolerates middle names and extra whitespace', () => {
-    expect(namesMatch('Maria  Elena Gonzalez', 'Maria Gonzalez')).toBe(true);
-    expect(namesMatch('Maria Gonzalez', 'Maria Elena Gonzalez')).toBe(true);
-  });
-
-  it('rejects different people', () => {
-    expect(namesMatch('Mario Gonzalez', 'Maria Gonzalez')).toBe(false);
-    expect(namesMatch('Maria Chen', 'Maria Gonzalez')).toBe(false);
-    expect(namesMatch('David Chen', 'Maria Gonzalez')).toBe(false);
-  });
-
-  it('rejects a bare first name', () => {
-    expect(namesMatch('Maria', 'Maria Gonzalez')).toBe(false);
   });
 });
 
