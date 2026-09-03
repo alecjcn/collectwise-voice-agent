@@ -33,6 +33,11 @@ describe('database', () => {
     expect(repo.findAccountByNumber('A T L 1003')?.debtorName).toBe('Sarah Whitmore');
     // Digits only: match by unique suffix.
     expect(repo.findAccountByNumber('1003')?.debtorName).toBe('Sarah Whitmore');
+    // STT often drops or garbles the letter prefix; the digits decide.
+    expect(repo.findAccountByNumber('TL1001')?.debtorName).toBe('Maria Gonzalez');
+    expect(repo.findAccountByNumber('tl 1001')?.debtorName).toBe('Maria Gonzalez');
+    // Wrong digits still never match, whatever the prefix.
+    expect(repo.findAccountByNumber('ATL-1000')).toBeUndefined();
     // Too short or unmatchable digits must not guess.
     expect(repo.findAccountByNumber('3')).toBeUndefined();
     expect(repo.findAccountByNumber('9999')).toBeUndefined();
