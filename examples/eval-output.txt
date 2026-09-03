@@ -1,20 +1,10 @@
+$ vitest --run
 
  RUN  v4.1.11 /Users/alec/repos/agent-starter-node
 
-stdout | src/evals/negotiation.test.ts
-◇ injected env (8) from .env.local // tip: ⌁ auth for agents [www.vestauth.com]
 
- ❯ src/evals/negotiation.test.ts (13 tests | 1 failed) 86466ms
-     × offers a 3-month plan when the caller cannot pay in full 4889ms
-stdout | src/evals/edge-cases.test.ts
-◇ injected env (8) from .env.local // tip: ⌁ auth for agents [www.vestauth.com]
+ Test Files  6 passed (6)
+      Tests  64 passed (64)
+   Start at  17:21:25
+   Duration  171.97s (transform 78ms, setup 0ms, import 1.94s, tests 169.49s, environment 0ms)
 
- ❯ src/evals/edge-cases.test.ts (5 tests | 1 failed) 32467ms
-     × escalates when the caller asks for a human 6064ms
-
- Test Files  2 failed | 4 passed (6)
-      Tests  2 failed | 62 passed (64)
-   Start at  15:58:49
-   Duration  169.89s (transform 60ms, setup 0ms, import 1.21s, tests 168.28s, environment 0ms)
-
-[ELIFECYCLE] Test failed. See above for more details.

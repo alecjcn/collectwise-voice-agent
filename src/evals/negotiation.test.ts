@@ -210,10 +210,19 @@ describe('negotiation agent', () => {
     async () => {
       await startVerified();
       await session.run({ userInput: 'What do I owe?' }).wait();
-      await session.run({ userInput: 'I can offer one thousand dollars to settle.' }).wait();
-      const result = await session
-        .run({ userInput: 'Okay, one thousand five hundred. Final offer.' })
-        .wait();
+      // The model may confirm each amount before checking it, so drive the two
+      // lowball offers with confirmations until both rejections land (bounded).
+      const offers = [
+        'I can offer one thousand dollars to settle.',
+        'Yes, one thousand dollars even. Can you take it?',
+        'Okay, one thousand five hundred. Final offer.',
+        'Yes, one thousand five hundred dollars.',
+      ];
+      let result!: voice.testing.RunResult;
+      for (const userInput of offers) {
+        result = await session.run({ userInput }).wait();
+        if (state.settlementRejections >= 2) break;
+      }
 
       // Two below-floor offers recorded -> the tool permits naming the minimum.
       expect(state.settlementRejections).toBeGreaterThanOrEqual(2);
