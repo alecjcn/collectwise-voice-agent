@@ -61,7 +61,13 @@ CREATE INDEX IF NOT EXISTS idx_accounts_phone ON accounts(phone_number);
 CREATE INDEX IF NOT EXISTS idx_outcomes_call ON call_outcomes(call_id);
 `;
 
-/** Open (creating directories and schema as needed) a SQLite database. */
+/**
+ * Open (creating directories and schema as needed) a SQLite database.
+ *
+ * There are no migrations (POC): "IF NOT EXISTS" leaves an existing file's
+ * tables untouched, so after any SCHEMA change, delete the local database
+ * file — it reseeds automatically on the next start.
+ */
 export function openDb(path: string): DatabaseSync {
   if (path !== ':memory:') {
     mkdirSync(dirname(path), { recursive: true });

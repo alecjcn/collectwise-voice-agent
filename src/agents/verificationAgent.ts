@@ -64,13 +64,15 @@ const verifyIdentity = llm.tool({
       return 'No verification attempts remain. Tell the caller you cannot discuss the account today and end the call politely.';
     }
 
-    state.verificationAttempts += 1;
     // The comparison happens here, in code: the stored digits never reach the
     // model, so it can only ever relay match / no match. Names are deliberately
     // not compared - STT garbles surnames, and the right party was already
     // confirmed by name.
     const success = last4Ssn === account.last4Ssn;
+    // Audit before counting: an infrastructure failure must not burn one of
+    // the caller's three attempts.
     state.repo.recordVerificationAttempt({ callId: state.callId, accountId: account.id, success });
+    state.verificationAttempts += 1;
     state.trace.event('verification', { attempt: state.verificationAttempts, success });
 
     if (success) {
