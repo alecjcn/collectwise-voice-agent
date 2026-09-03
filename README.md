@@ -144,8 +144,10 @@ separate services — the DB is embedded, LiveKit Cloud provides transport/model
   rules. Splitting by phase keeps each prompt small — better latency and adherence than one
   mega-prompt.
 - **Prompts steer, tools enforce.** The negotiation ladder (full payment → 3-month plan →
-  up to 24 months → settlement) is prompt-driven, but the limits are code:
-  `proposePaymentPlan`/`finalizeAgreement` reject > 24 months, `proposeSettlement`/
+  up to 24 months → settlement) is prompt-driven, but the limits — and the arithmetic — are
+  code: `proposePaymentPlan`/`finalizeAgreement` reject > 24 months, a caller's stated
+  monthly budget maps to the shortest affordable plan in `computePlanForBudget` (the model
+  passes the dollars straight through and never does the division), `proposeSettlement`/
   `finalizeAgreement` reject offers below 80% of the balance, `getAccountDetails` refuses
   when the `verified` flag isn't set, and `verifyIdentity` enforces the 3-attempt cap and is
   the _only_ code path that sets `verified`. A manipulated or confused LLM gets a policy

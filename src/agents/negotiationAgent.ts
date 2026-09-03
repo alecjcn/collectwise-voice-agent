@@ -1,7 +1,13 @@
 import { llm, voice } from '@livekit/agents';
 import { z } from 'zod';
 import type { Account } from '../db/repository.ts';
-import { computeInstallmentPlan, formatCents, validateSettlementOffer } from '../policy.ts';
+import {
+  type InstallmentPlan,
+  computeInstallmentPlan,
+  computePlanForBudget,
+  formatCents,
+  validateSettlementOffer,
+} from '../policy.ts';
 import { NEGOTIATION_INSTRUCTIONS, VOICE_RULES } from '../prompts.ts';
 import type { CallState } from '../state.ts';
 import { createEndCall, escalateToHuman, recordCallOutcome, traced } from '../tools/shared.ts';
@@ -69,34 +75,64 @@ const getAccountDetails = llm.tool({
   }),
 });
 
+/** Speakable summary of a computed plan, shared by both proposal paths. */
+function describePlan(plan: InstallmentPlan): string {
+  if (plan.months === 1) {
+    return `a single payment of ${formatCents(plan.totalCents)}`;
+  }
+  return `a ${plan.months} month plan: ${plan.months - 1} monthly payments of ${formatCents(plan.monthlyCents)}, then a final payment of ${formatCents(plan.finalCents)}, totaling ${formatCents(plan.totalCents)}`;
+}
+
 const proposePaymentPlan = llm.tool({
   name: 'proposePaymentPlan',
   description:
-    'Check whether a monthly installment plan of a given length is allowed and compute its payment amounts. This is only a proposal; use finalizeAgreement once the caller accepts. Plans longer than 24 months are never allowed.',
+    'Compute an installment plan from what the caller asked for: pass months when they named a plan length, or monthlyAmountDollars when they named what they can pay per month (pass exactly one). The tool does all plan arithmetic - never convert a monthly amount into months yourself. This is only a proposal; use finalizeAgreement once the caller accepts. Plans longer than 24 months are never allowed.',
   parameters: z.object({
-    months: z.number().int().describe('Number of monthly payments requested'),
+    months: z.number().int().optional().describe('The plan length the caller asked for, in months'),
+    monthlyAmountDollars: z
+      .number()
+      .positive()
+      .optional()
+      .describe('The monthly amount the caller said they can pay, in dollars'),
   }),
-  execute: traced('proposePaymentPlan', async ({ months }, { ctx }) => {
+  execute: traced('proposePaymentPlan', async ({ months, monthlyAmountDollars }, { ctx }) => {
     const state = ctx.userData;
     const result = requireVerifiedAccount(state);
     if ('unverified' in result) return handoffToVerification(state);
     if ('error' in result) return result.error;
     const { account } = result;
     if (account.balanceCents <= 0) return 'This account has no balance due; no plan is needed.';
+    if ((months === undefined) === (monthlyAmountDollars === undefined)) {
+      return 'Pass exactly one of months or monthlyAmountDollars.';
+    }
+
+    // Caller stated a monthly budget: code picks the shortest affordable
+    // plan, or the closest allowed payment when nothing fits under the cap.
+    if (monthlyAmountDollars !== undefined) {
+      const budgetCents = Math.round(monthlyAmountDollars * 100);
+      if (budgetCents <= 0) return 'The monthly amount must be positive.';
+      const { plan, withinBudget } = computePlanForBudget(account.balanceCents, budgetCents);
+      state.trace.event('plan_decision', {
+        action: withinBudget ? 'proposed' : 'proposed_over_budget',
+        budgetCents,
+        months: plan.months,
+        monthlyCents: plan.monthlyCents,
+      });
+      if (!withinBudget) {
+        return `${formatCents(budgetCents)} per month would take more than the 24 month maximum. The closest allowed plan is ${describePlan(plan)} - slightly above their number. Offer that plan and ask if it is manageable; never promise more than 24 months or a lower payment.`;
+      }
+      return `The shortest plan within ${formatCents(budgetCents)} per month is ${describePlan(plan)}. This is only a proposal; call finalizeAgreement if the caller accepts.`;
+    }
+
+    // Caller asked for a plan length directly.
     try {
-      const plan = computeInstallmentPlan(account.balanceCents, months);
+      const plan = computeInstallmentPlan(account.balanceCents, months!);
       state.trace.event('plan_decision', {
         action: 'proposed',
         months: plan.months,
         monthlyCents: plan.monthlyCents,
       });
-      const monthly = formatCents(plan.monthlyCents);
-      const final = formatCents(plan.finalCents);
-      const total = formatCents(plan.totalCents);
-      if (plan.months === 1) {
-        return `A single payment of ${total} is available. Call finalizeAgreement if the caller accepts.`;
-      }
-      return `A ${plan.months} month plan is available: ${plan.months - 1} monthly payments of ${monthly}, then a final payment of ${final}, totaling ${total}. This is only a proposal; call finalizeAgreement if the caller accepts.`;
+      return `Available: ${describePlan(plan)}. This is only a proposal; call finalizeAgreement if the caller accepts.`;
     } catch (error) {
       state.trace.event('plan_decision', {
         action: 'rejected',

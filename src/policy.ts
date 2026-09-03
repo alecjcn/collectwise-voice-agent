@@ -30,6 +30,36 @@ export function computeInstallmentPlan(balanceCents: number, months: number): In
   return { months, monthlyCents, finalCents, totalCents: balanceCents };
 }
 
+export interface BudgetPlanResult {
+  /** The plan to offer: the shortest fit, or the 24-month closest fallback. */
+  plan: InstallmentPlan;
+  /** Whether the plan's monthly payment is within the caller's stated budget. */
+  withinBudget: boolean;
+}
+
+/**
+ * Find the installment plan for a caller who stated a monthly budget rather
+ * than a plan length. `ceil(balance / budget)` is the fewest months whose
+ * equal payment fits the budget, so this is by construction the shortest
+ * affordable plan. When even the 24-month maximum exceeds the budget, the
+ * 24-month plan is returned with `withinBudget: false` so the caller can be
+ * told the closest allowed payment honestly.
+ */
+export function computePlanForBudget(
+  balanceCents: number,
+  monthlyBudgetCents: number,
+): BudgetPlanResult {
+  if (!Number.isInteger(monthlyBudgetCents) || monthlyBudgetCents <= 0) {
+    throw new Error('Monthly budget must be a positive integer number of cents.');
+  }
+  const monthsNeeded = Math.ceil(balanceCents / monthlyBudgetCents);
+  const months = Math.min(monthsNeeded, MAX_PLAN_MONTHS);
+  return {
+    plan: computeInstallmentPlan(balanceCents, months),
+    withinBudget: monthsNeeded <= MAX_PLAN_MONTHS,
+  };
+}
+
 export function minSettlementCents(balanceCents: number): number {
   return Math.ceil(balanceCents * MIN_SETTLEMENT_RATIO);
 }

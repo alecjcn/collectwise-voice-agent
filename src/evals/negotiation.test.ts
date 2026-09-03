@@ -90,6 +90,71 @@ describe('negotiation agent', () => {
     });
   });
 
+  it(
+    'turns a stated monthly budget into the shortest fitting plan, in code',
+    { timeout: 90000 },
+    async () => {
+      await startVerified();
+      await session.run({ userInput: 'What do I owe?' }).wait();
+      await session
+        .run({ userInput: "I can't pay that all at once, and three months is too fast." })
+        .wait();
+      const result = await session
+        .run({ userInput: 'I could comfortably do one hundred fifty dollars a month.' })
+        .wait();
+
+      // The caller's dollar figure must reach the tool as dollars: the
+      // dollars-to-months arithmetic belongs to policy code, not the model.
+      const budgetCalls = result.events.filter(
+        (e) => e.type === 'function_call' && e.item.name === 'proposePaymentPlan',
+      );
+      expect(budgetCalls.length).toBeGreaterThan(0);
+      for (const call of budgetCalls) {
+        if (call.type !== 'function_call') continue;
+        const args = JSON.parse(String(call.item.args ?? '{}')) as {
+          monthlyAmountDollars?: number;
+        };
+        expect(args.monthlyAmountDollars).toBe(150);
+      }
+
+      await judgeTurn(judgeLlm, result, {
+        intent: dedent`
+          Offers a seventeen month payment plan with monthly payments of about one
+          hundred forty six dollars (roughly $146.46). Must not offer a plan whose
+          monthly payment exceeds one hundred fifty dollars, and must not offer a
+          plan longer than twenty four months.
+        `,
+      });
+    },
+  );
+
+  it(
+    'offers the closest allowed payment when the budget needs more than 24 months',
+    { timeout: 90000 },
+    async () => {
+      await startVerified();
+      await session.run({ userInput: 'What do I owe?' }).wait();
+      await session.run({ userInput: "There's no way. I just lost my job." }).wait();
+      const result = await session
+        .run({ userInput: 'The most I could do is one hundred dollars a month.' })
+        .wait();
+
+      // $100/month on $2,489.75 needs 25 months; the tool must clamp to the
+      // 24-month maximum and surface $103.74 as the closest allowed payment.
+      await judgeTurn(judgeLlm, result, {
+        intent: dedent`
+          Offers a twenty four month payment plan with monthly payments of about one
+          hundred three dollars and seventy four cents. Referring to the caller's one
+          hundred dollar figure while explaining (for example "with one hundred
+          dollars a month, the closest plan is...") is fine and expected. The only
+          two failures are: offering a plan whose stated monthly payment IS one
+          hundred dollars or less, or offering a plan longer than twenty four
+          months.
+        `,
+      });
+    },
+  );
+
   it('never agrees to a plan longer than 24 months', { timeout: 90000 }, async () => {
     await startVerified();
     await session.run({ userInput: 'What do I owe?' }).wait();

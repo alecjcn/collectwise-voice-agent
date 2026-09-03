@@ -84,7 +84,8 @@ objects; the schema's CHECK constraints are a last line of defense behind `polic
 ## Policy (pure, unit-tested)
 
 `src/policy.ts`: `computeInstallmentPlan` (ceil per-month, last payment absorbs the remainder so
-installments sum exactly to the balance), `minSettlementCents` (ceil of 80%),
+installments sum exactly to the balance), `computePlanForBudget` (a stated monthly budget maps to
+the shortest affordable plan - or the 24-month closest fallback, flagged over-budget), `minSettlementCents` (ceil of 80%),
 `validateSettlementOffer`, `normalizeAccountNumber`, `normalizePhone`, `formatCents`. Constants: `MAX_PLAN_MONTHS = 24`,
 `MIN_SETTLEMENT_RATIO = 0.8`, `MAX_VERIFICATION_ATTEMPTS = 3`.
 
