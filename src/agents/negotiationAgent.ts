@@ -234,7 +234,7 @@ const finalizeAgreement = llm.tool({
       });
       state.trace.event('outcome', { outcome });
 
-      return `Agreement recorded: ${recap}. Recap these exact terms to the caller and tell them a secure payment link will arrive by text and email. Do NOT call end_call in this turn - let the caller respond to the recap first; once they acknowledge, say goodbye and then end the call. If the caller interrupts the recap to confirm, do not restate the remaining terms; briefly confirm it is all set, make sure they know about the payment link, then wrap up. Never collect card or bank numbers by voice.`;
+      return `Agreement recorded: ${recap}. Recap these exact terms to the caller and tell them a secure payment link will arrive by text and email. Do NOT call end_call in this turn - let the caller respond to the recap first; once they acknowledge, call end_call (it says the goodbye for you). If the caller interrupts the recap to confirm, do not restate the remaining terms; briefly confirm it is all set and make sure they know about the payment link. Never collect card or bank numbers by voice.`;
     },
   ),
 });
@@ -263,7 +263,7 @@ const recordDispute = llm.tool({
       state.outcomeRecorded = true;
     }
     state.trace.event('outcome', { outcome: 'dispute', reason });
-    return 'Dispute recorded and collection paused. Tell the caller the account is marked as disputed, written validation of the debt will be mailed to them, and no collection will continue while it is reviewed. Then end the call politely.';
+    return 'Dispute recorded and collection paused. Tell the caller the account is marked as disputed, written validation of the debt will be mailed to them, and no collection will continue while it is reviewed. Then call end_call.';
   }),
 });
 

@@ -42,15 +42,15 @@ export function traced<A, R>(
 export function createEndCall() {
   return beta.createEndCallTool<CallState>({
     extraDescription:
-      'Also call this after wrapping up a completed call: an outcome must already be recorded (finalizeAgreement or recordCallOutcome) and the caller must have heard a goodbye. The goodbye and this tool call belong in the SAME reply: write the goodbye text, then call end_call immediately in that same reply. Never say goodbye and then wait for the caller to speak again - a goodbye without end_call strands the caller on a silent open line. If your previous message was already a goodbye, call end_call now without further text. Never call end_call with no goodbye spoken - a silent hangup is never acceptable. Never call it in the same turn as finalizeAgreement - the caller must hear the recap and respond before the call ends.',
-    // This instruction fills the one reply generated after end_call. It must
-    // handle both cases: rescue a silent hangup (the model sometimes calls
-    // end_call without having spoken) with a goodbye, while producing nothing
-    // when the goodbye was already said - the default ("say goodbye to the
-    // user") caused duplicate farewells, and an unconditional "say nothing"
-    // led small models to fall back on their base instructions and re-greet.
+      'Also call this to wrap up a completed call: an outcome must already be recorded (finalizeAgreement or recordCallOutcome). Calling this tool generates the goodbye and hangs up after it finishes playing, so do NOT compose a farewell yourself - ending the call means calling this tool, nothing more. Never call it in the same turn as finalizeAgreement: the caller must hear the recap and respond first.',
+    // The tool's designed flow: end_call generates the ONE goodbye (from this
+    // instruction), waits for it to finish playing, then shuts down. Keeping
+    // the goodbye here, rather than asking the model to pair farewell text
+    // with a tool call in a single completion, is what makes hanging up
+    // reliable. The conditional covers the model occasionally saying its own
+    // goodbye anyway.
     endInstructions:
-      'The line is disconnecting. If your last message already said goodbye, output nothing at all - no greeting, no question, not one word. Only if you have not said goodbye yet, say one brief goodbye sentence now.',
+      'Say one brief, warm goodbye: thank the caller for their time and wish them well, in one short sentence. No new information, no questions, no greetings. If your last message was already a goodbye, output nothing at all.',
     ignoreOnEnter: true,
     onToolCalled: ({ ctx }) => {
       ctx.userData.trace.event('end_call', { by: 'agent' });
@@ -92,7 +92,7 @@ export const escalateToHuman = llm.tool({
       details,
       note: 'triggered handoff to live agent (POC: callback promised, agent ends call)',
     });
-    return 'Escalation recorded. Tell the caller a specialist will call them back within one business day. Then record the call outcome if none is recorded yet, say goodbye, and end the call.';
+    return 'Escalation recorded. Tell the caller a specialist will call them back within one business day. Then record the call outcome if none is recorded yet, and call end_call when the caller is done.';
   }),
 });
 
@@ -116,7 +116,7 @@ export const recordCallOutcome = llm.tool({
   execute: traced('recordCallOutcome', async ({ outcome, notes }, { ctx }) => {
     const state = ctx.userData;
     if (state.outcomeRecorded) {
-      return 'An outcome has already been recorded for this call. End the call politely.';
+      return 'An outcome has already been recorded for this call. Call end_call when the caller is done.';
     }
     state.repo.recordOutcome({
       callId: state.callId,
@@ -126,6 +126,6 @@ export const recordCallOutcome = llm.tool({
     });
     state.outcomeRecorded = true;
     state.trace.event('outcome', { outcome, notes });
-    return `Outcome recorded as ${outcome}. Say a brief goodbye and call end_call in this same reply - goodbye text first, then the tool call. Never say goodbye without end_call, and never hang up without the spoken goodbye.`;
+    return `Outcome recorded as ${outcome}. Wrap up: relay anything the caller still needs to hear, then call end_call - it says the goodbye and hangs up for you.`;
   }),
 });

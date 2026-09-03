@@ -10,7 +10,6 @@ import { DEFAULT_DB_PATH, seedIfEmpty } from './db/seed.ts';
 import type { CallState } from './state.ts';
 import { createCallState, locateCallerByPhone } from './state.ts';
 import { Tracer } from './trace.ts';
-import { armPostOutcomeWatchdog } from './watchdog.ts';
 
 dotenv.config({ path: '.env.local' });
 
@@ -100,10 +99,6 @@ export default defineAgent({
       void ctx.deleteRoom().catch(() => {});
       ctx.shutdown('session closed');
     });
-
-    // Backstop: once an outcome is recorded, a silent line hangs up on a
-    // timer even if the model said goodbye without calling end_call.
-    armPostOutcomeWatchdog(session, userData);
 
     // Identify the caller by phone number before the conversation starts. A
     // match lets Nancy open with right-party confirmation; otherwise she asks

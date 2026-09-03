@@ -42,7 +42,7 @@ const lookupAccount = llm.tool({
     if (!account) {
       state.lookupFailures += 1;
       if (state.lookupFailures >= 2) {
-        return 'No matching account was found again. Offer to have a specialist follow up: use escalateToHuman with reason account_not_found, then recordCallOutcome with outcome account_not_found, and end the call politely.';
+        return 'No matching account was found again. Offer to have a specialist follow up: use escalateToHuman with reason account_not_found, then recordCallOutcome with outcome account_not_found, then end_call.';
       }
       return 'No matching account was found. Ask the caller to double-check the number and try once more.';
     }
@@ -71,7 +71,7 @@ const verifyIdentity = llm.tool({
       return 'Identity is already verified.';
     }
     if (state.verificationAttempts >= MAX_VERIFICATION_ATTEMPTS) {
-      return 'No verification attempts remain. Tell the caller you cannot discuss the account today and end the call politely.';
+      return 'No verification attempts remain. Tell the caller you cannot discuss the account today, then call end_call.';
     }
 
     // The comparison happens here, in code: the stored digits never reach the
@@ -108,7 +108,7 @@ const verifyIdentity = llm.tool({
         state.outcomeRecorded = true;
       }
       state.trace.event('outcome', { outcome: 'verification_failed' });
-      return 'The details do not match and no attempts remain. The outcome has been recorded. Tell the caller you are unable to discuss the account today, suggest calling back with correct information, and say goodbye - then call end_call in that same reply, after the goodbye text. Never say goodbye without end_call, and never call end_call without the spoken goodbye. Do not reveal which detail was wrong.';
+      return 'The details do not match and no attempts remain. The outcome has been recorded. Tell the caller you are unable to discuss the account today and suggest calling back with correct information, then call end_call - it says the goodbye and hangs up for you. Do not reveal which detail was wrong.';
     }
     return `The details do not match our records. Attempts remaining: ${remaining}. Let the caller try again. Do not reveal which detail was wrong.`;
   }),

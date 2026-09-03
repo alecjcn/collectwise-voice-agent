@@ -231,9 +231,9 @@ describe('negotiation agent', () => {
       // The caller acknowledges the recap; the agent typically wraps up here,
       // often with a farewell of its own.
       await session.run({ userInput: "Okay, alright, that's fine." }).wait();
-      // The caller returns the farewell. Wherever the goodbye lands, the turn
-      // that says it must also hang up: an agent that says goodbye and then
-      // waits leaves the caller in a silent, open room.
+      // The caller returns the farewell. Ending the call means calling
+      // end_call (which generates the goodbye itself); an agent that answers
+      // with farewell text alone leaves the caller in a silent, open room.
       const result = await session.run({ userInput: 'Yep, thanks. You too.' }).wait();
 
       result.expect.containsFunctionCall({ name: 'end_call' });
@@ -297,13 +297,13 @@ describe('negotiation agent', () => {
           Context: the agent was reciting the final agreement recap when the caller
           interrupted it mid-sentence to say the terms work for them, so the agent's
           previous message was cut off. The turn being judged is what the agent said
-          next. A passing turn engages with the caller's confirmation and moves the
-          call forward: briefly confirming the agreement is in place, mentioning the
-          secure payment link, asking if anything else is needed, and/or saying
-          goodbye. The ONLY failures are: (a) the turn reads as a continuation of the
-          cut-off sentence rather than a fresh response to the caller, or (b) the
-          turn re-recites the full plan terms in detail again as if the caller had
-          not already confirmed them.
+          next. A passing turn moves the call to its close in any reasonable way: a
+          brief confirmation the agreement is set, a mention of the secure payment
+          link, a goodbye, or any combination - a goodbye alone passes. The ONLY
+          failures are: (a) the turn reads as a continuation of the cut-off sentence
+          rather than a fresh response to the caller, or (b) the turn re-recites the
+          full plan terms in detail again as if the caller had not already confirmed
+          them.
         `,
       });
     },

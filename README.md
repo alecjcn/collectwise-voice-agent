@@ -171,7 +171,7 @@ separate services — the DB is embedded, LiveKit Cloud provides transport/model
 | Dispute stops collection               | `recordDispute` pauses account, records outcome, prompt stops asks                                                             |
 | Human escalation                       | `escalateToHuman` records reason; callback within 1 business day                                                               |
 | No payment credentials by voice        | Prompt; agreements deliver a secure payment link instead                                                                       |
-| No stranded calls after the goodbye    | Prompt (goodbye + `end_call` in one reply) + 15s post-outcome silence watchdog closes the session in code (`watchdog.ts`)      |
+| No stranded or cut-off call endings    | Ending = calling `end_call`; the tool generates the one goodbye, plays it out fully, then closes the session and room          |
 
 ## Evals & tests
 
