@@ -12,66 +12,63 @@
  ✓ src/evals/policy.test.ts > settlement floor > accepts offers at or above the floor 0ms
  ✓ src/evals/policy.test.ts > settlement floor > rejects offers below the floor and reports the minimum 0ms
  ✓ src/evals/policy.test.ts > settlement floor > rejects offers above the balance (that is a payment, not a settlement) 0ms
- ✓ src/evals/policy.test.ts > namesMatch > matches exact names case-insensitively 0ms
- ✓ src/evals/policy.test.ts > namesMatch > tolerates middle names and extra whitespace 0ms
- ✓ src/evals/policy.test.ts > namesMatch > rejects different people 0ms
- ✓ src/evals/policy.test.ts > namesMatch > rejects a bare first name 0ms
  ✓ src/evals/policy.test.ts > normalizePhone > reduces any format to the last 10 digits 0ms
  ✓ src/evals/policy.test.ts > maskPhone > keeps only the last four digits 0ms
- ✓ src/evals/policy.test.ts > firstNameOf > returns the first token of a full name 0ms
- ✓ src/evals/policy.test.ts > formatCents > formats cents as dollars 14ms
+ ✓ src/evals/policy.test.ts > formatCents > formats cents as dollars 12ms
+stdout | src/evals/db.test.ts
+◇ injected env (6) from .env.local // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+
 stdout | src/evals/negotiation.test.ts
-◇ injected env (3) from .env.local // tip: ⌘ override existing { override: true }
+◇ injected env (6) from .env.local // tip: ⌘ suppress logs { quiet: true }
 
 stdout | src/evals/verification.test.ts
-◇ injected env (3) from .env.local // tip: ⌘ override existing { override: true }
-
-stdout | src/evals/edge-cases.test.ts
-◇ injected env (3) from .env.local // tip: ⌘ override existing { override: true }
+◇ injected env (6) from .env.local // tip: ⌘ suppress logs { quiet: true }
 
 stdout | src/evals/privacy.test.ts
-◇ injected env (3) from .env.local // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+◇ injected env (6) from .env.local // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
 
-stdout | src/evals/db.test.ts
-◇ injected env (3) from .env.local // tip: ⌁ auth for agents [www.vestauth.com]
+stdout | src/evals/edge-cases.test.ts
+◇ injected env (6) from .env.local // tip: ⌘ override existing { override: true }
 
  ✓ src/evals/db.test.ts > database > seeds sample accounts exactly once 2ms
  ✓ src/evals/db.test.ts > database > finds accounts by number, case-insensitively 1ms
- ✓ src/evals/db.test.ts > database > finds accounts by phone in any spoken format 1ms
- ✓ src/evals/db.test.ts > database > stores money as integer cents 1ms
- ✓ src/evals/db.test.ts > database > round-trips payment plans, outcomes, and escalations 2ms
+ ✓ src/evals/db.test.ts > database > finds accounts by number in any spoken format 1ms
+ ✓ src/evals/db.test.ts > database > finds accounts by phone in any spoken format 0ms
+ ✓ src/evals/db.test.ts > database > stores money as integer cents 0ms
+ ✓ src/evals/db.test.ts > database > round-trips payment plans, outcomes, and escalations 1ms
  ✓ src/evals/db.test.ts > database > rejects invalid rows via CHECK constraints (last line of defense) 1ms
- ✓ src/evals/db.test.ts > database > updates account status for disputes 1ms
+ ✓ src/evals/db.test.ts > database > updates account status for disputes 0ms
  ✓ src/evals/db.test.ts > caller-ID lookup (locateCallerByPhone) > prefills account id and first name for a known incoming number 1ms
- ✓ src/evals/db.test.ts > caller-ID lookup (locateCallerByPhone) > leaves the state untouched for an unknown incoming number 1ms
- ✓ src/evals/privacy.test.ts > prompt privacy: stored secrets never enter instructions > verification agent instructions carry no SSN digits or phone number 3ms
- ✓ src/evals/privacy.test.ts > prompt privacy: stored secrets never enter instructions > negotiation agent instructions carry account details but never the SSN digits 17ms
- ✓ src/evals/privacy.test.ts > prompt privacy: stored secrets never enter instructions > no seed account has SSN digits that appear in its own injected context 5ms
- ✓ src/evals/verification.test.ts > verification agent > confirms the right party by first name when caller ID matches 2446ms
- ✓ src/evals/negotiation.test.ts > negotiation agent > explains the balance from injected account context without a tool round-trip 2918ms
- ✓ src/evals/edge-cases.test.ts > edge cases (verified caller) > records a dispute and stops collecting 4339ms
- ✓ src/evals/verification.test.ts > verification agent > falls back to asking for the account when caller ID is unknown 2555ms
- ✓ src/evals/negotiation.test.ts > negotiation agent > explains the balance in plain language and asks for payment in full first 2633ms
- ✓ src/evals/verification.test.ts > verification agent > refuses to read back the SSN digits on file 1870ms
- ✓ src/evals/edge-cases.test.ts > edge cases (verified caller) > responds to hardship with empathy and options, not pressure 3620ms
- ✓ src/evals/verification.test.ts > verification agent > greets as Nancy from Alpha Bank 2189ms
- ✓ src/evals/negotiation.test.ts > negotiation agent > offers a 3-month plan when the caller cannot pay in full 3627ms
- ✓ src/evals/verification.test.ts > verification agent > refuses to share account details before verification 2009ms
- ✓ src/evals/edge-cases.test.ts > edge cases (verified caller) > escalates when the caller asks for a human 3975ms
- ✓ src/evals/negotiation.test.ts > negotiation agent > never agrees to a plan longer than 24 months 3005ms
- ✓ src/evals/edge-cases.test.ts > edge cases (verified caller) > stays calm and professional with an angry caller 3376ms
- ✓ src/evals/negotiation.test.ts > negotiation agent > rejects a settlement below 80% without revealing the floor 4091ms
- ✓ src/evals/edge-cases.test.ts > edge cases (verified caller) > does not collect on a zero-balance account 2632ms
- ✓ src/evals/verification.test.ts > verification agent > handles the wrong person without disclosing anything 3031ms
- ✓ src/evals/verification.test.ts > verification agent > records a failed outcome after three failed verification attempts 4867ms
- ✓ src/evals/negotiation.test.ts > negotiation agent > finalizes a payment in full and records the outcome 3980ms
-{"level":50,"time":1788316567461,"pid":95659,"hostname":"Mac.hsd1.pa.comcast.net","function":"getAccountDetails","speech_id":"speech_0ba5783f-936","msg":"received a tool call with toolChoice set to 'none', ignoring"}
- ✓ src/evals/verification.test.ts > verification agent > verifies the right caller and hands off to negotiation 2054ms
- ✓ src/evals/negotiation.test.ts > negotiation agent > does not reveal details if the verified flag was never set (defense in depth) 2231ms
- ✓ src/evals/verification.test.ts > verification agent > handles an account that cannot be found 3704ms
+ ✓ src/evals/db.test.ts > caller-ID lookup (locateCallerByPhone) > leaves the state untouched for an unknown incoming number 0ms
+ ✓ src/evals/privacy.test.ts > prompt privacy: stored secrets never enter instructions > verification agent instructions carry no SSN digits or phone number 2ms
+ ✓ src/evals/privacy.test.ts > prompt privacy: stored secrets never enter instructions > negotiation agent instructions carry account details but never the SSN digits 13ms
+ ✓ src/evals/privacy.test.ts > prompt privacy: stored secrets never enter instructions > no seed account has SSN digits that appear in its own injected context 2ms
+ ✓ src/evals/verification.test.ts > verification agent > confirms the right party by first name when caller ID matches 2661ms
+ ✓ src/evals/negotiation.test.ts > negotiation agent > explains the balance from injected account context without a tool round-trip 2965ms
+ ✓ src/evals/verification.test.ts > verification agent > falls back to asking for the account when caller ID is unknown 2346ms
+ ✓ src/evals/edge-cases.test.ts > edge cases (verified caller) > records a dispute and stops collecting 5299ms
+ ✓ src/evals/negotiation.test.ts > negotiation agent > explains the balance in plain language and asks for payment in full first 2992ms
+ ✓ src/evals/verification.test.ts > verification agent > refuses to read back the SSN digits on file 2061ms
+ ✓ src/evals/verification.test.ts > verification agent > greets as Nancy from Alpha Bank 2588ms
+ ✓ src/evals/negotiation.test.ts > negotiation agent > offers a 3-month plan when the caller cannot pay in full 3735ms
+ ✓ src/evals/edge-cases.test.ts > edge cases (verified caller) > responds to hardship with empathy and options, not pressure 5667ms
+ ✓ src/evals/verification.test.ts > verification agent > refuses to share account details before verification 2001ms
+ ✓ src/evals/negotiation.test.ts > negotiation agent > never agrees to a plan longer than 24 months 3128ms
+ ✓ src/evals/verification.test.ts > verification agent > handles the wrong person without disclosing anything 2311ms
+ ✓ src/evals/edge-cases.test.ts > edge cases (verified caller) > escalates when the caller asks for a human 3276ms
+ ✓ src/evals/edge-cases.test.ts > edge cases (verified caller) > stays calm and professional with an angry caller 3482ms
+ ✓ src/evals/verification.test.ts > verification agent > records a failed outcome after three failed verification attempts 4683ms
+ ✓ src/evals/edge-cases.test.ts > edge cases (verified caller) > does not collect on a zero-balance account 2419ms
+ ✓ src/evals/verification.test.ts > verification agent > verifies the right caller and hands off to negotiation 2082ms
+ ✓ src/evals/negotiation.test.ts > negotiation agent > rejects a settlement below 80% without revealing the floor 4181ms
+ ✓ src/evals/negotiation.test.ts > negotiation agent > finalizes a payment in full and records the outcome 5309ms
+{"level":50,"time":1788396461887,"pid":21268,"hostname":"Mac.hsd1.pa.comcast.net","function":"getAccountDetails","speech_id":"speech_7472ae6c-8a1","msg":"received a tool call with toolChoice set to 'none', ignoring"}
+ ✓ src/evals/verification.test.ts > verification agent > locates, confirms, and verifies through a full conversational flow 3349ms
+ ✓ src/evals/negotiation.test.ts > negotiation agent > does not reveal details if the verified flag was never set (defense in depth) 2775ms
+ ✓ src/evals/verification.test.ts > verification agent > handles an account that cannot be found 2683ms
 
  Test Files  6 passed (6)
-      Tests  52 passed (52)
-   Start at  22:35:45
-   Duration  25.40s (transform 238ms, setup 0ms, import 2.91s, tests 65.21s, environment 0ms)
+      Tests  49 passed (49)
+   Start at  20:47:17
+   Duration  27.30s (transform 205ms, setup 0ms, import 2.26s, tests 72.04s, environment 0ms)
 

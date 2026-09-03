@@ -265,13 +265,17 @@ describe('verification agent', () => {
   it('handles an account that cannot be found', { timeout: 90000 }, async () => {
     await session.start({ agent: createVerificationAgent() });
 
-    // The model may greet before looking anything up (eval sessions skip the
-    // entrypoint greeting), so allow one repeat turn before asserting.
-    let result = await session
-      .run({ userInput: 'My account number is ATL-9999. I want to know what this is about.' })
-      .wait();
-    if (state.lookupFailures === 0) {
-      result = await session.run({ userInput: 'I said, my account number is ATL-9999.' }).wait();
+    // The flow asks who is speaking before locating, so the scripted caller
+    // introduces themselves; drive turns until the lookup has actually run.
+    const turns = [
+      'Hi, this is John Smith. I got a letter about my account. My account number is ATL-9999.',
+      'John Smith. The account number is ATL-9999.',
+      'I am sure of the number. A T L nine nine nine nine.',
+    ];
+    let result = await session.run({ userInput: turns[0]! }).wait();
+    for (const userInput of turns.slice(1)) {
+      if (state.lookupFailures > 0) break;
+      result = await session.run({ userInput }).wait();
     }
 
     // Deterministic: the lookup ran and found nothing.
@@ -279,8 +283,8 @@ describe('verification agent', () => {
     await judgeTurn(judgeLlm, result, {
       intent: dedent`
           Indicates the account could not be found and asks the caller to double-check
-          the number, or offers further help locating it. Must NOT reveal any account
-          details or invent an account.
+          the number, or apologizes and offers a specialist follow-up. Must NOT reveal
+          any account details or invent an account.
         `,
     });
   });
