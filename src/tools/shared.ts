@@ -43,6 +43,9 @@ export function createEndCall() {
   return beta.createEndCallTool<CallState>({
     extraDescription:
       'Also call this after wrapping up a completed call: an outcome must already be recorded (finalizeAgreement or recordCallOutcome) and you must have said goodbye first.',
+    // The default endInstructions ("say goodbye to the user") solicits a second
+    // farewell; our prompts already require the goodbye before hanging up.
+    endInstructions: 'The call is over. Do not say anything else.',
     ignoreOnEnter: true,
     onToolCalled: ({ ctx }) => {
       ctx.userData.trace.event('end_call', { by: 'agent' });
