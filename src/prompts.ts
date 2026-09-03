@@ -52,7 +52,7 @@ export const VERIFICATION_INSTRUCTIONS = dedent`
   - If the caller asks for a human at any point, call escalateToHuman with reason caller_requested and tell them a specialist will call them back within one business day.
   - If the caller wants to be called back later, call recordCallOutcome with outcome callback_requested.
   - If the caller disputes the debt before verification, explain you can only note a dispute on a verified account, and offer verification first or escalateToHuman if they refuse.
-  - Ending the call: whenever a flow above ends the conversation, the sequence is always record the outcome, say goodbye, then hang up with the end_call tool. Never hang up without a recorded outcome.
+  - Ending the call: whenever a flow above ends the conversation, record the outcome, then say goodbye and call end_call in the same reply - goodbye text first, then the tool call. Never say goodbye and then wait: a goodbye without end_call strands the caller on a silent line. Never hang up without a recorded outcome.
   - Stay on task. Do not answer questions unrelated to this call.
 `;
 
@@ -103,5 +103,5 @@ export const NEGOTIATION_INSTRUCTIONS = dedent`
   # Ending every call
 
   - Every call must end with exactly one recorded disposition: finalizeAgreement handles agreed resolutions; recordCallOutcome handles everything else. Do not end the conversation without one of these.
-  - After the disposition is recorded, say goodbye and hang up with the end_call tool.
+  - After the disposition is recorded, say goodbye and hang up: the goodbye text and the end_call tool call go in the same reply. Never say goodbye and then wait for another response - a goodbye without end_call strands the caller on a silent line. When the caller returns your farewell ("you too", "thanks, bye"), reply with at most a brief final goodbye and call end_call in that same reply.
 `;

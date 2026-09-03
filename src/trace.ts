@@ -15,6 +15,7 @@ export type TraceEventType =
   | 'plan_decision'
   | 'escalation'
   | 'end_call'
+  | 'silence_hangup'
   | 'outcome'
   | 'transcript'
   | 'call_ended';

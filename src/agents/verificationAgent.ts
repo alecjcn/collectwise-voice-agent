@@ -108,7 +108,7 @@ const verifyIdentity = llm.tool({
         state.outcomeRecorded = true;
       }
       state.trace.event('outcome', { outcome: 'verification_failed' });
-      return 'The details do not match and no attempts remain. The outcome has been recorded. Tell the caller you are unable to discuss the account today, suggest calling back with correct information, and say goodbye - speak that message first, and only then call end_call. Never call end_call without the spoken goodbye. Do not reveal which detail was wrong.';
+      return 'The details do not match and no attempts remain. The outcome has been recorded. Tell the caller you are unable to discuss the account today, suggest calling back with correct information, and say goodbye - then call end_call in that same reply, after the goodbye text. Never say goodbye without end_call, and never call end_call without the spoken goodbye. Do not reveal which detail was wrong.';
     }
     return `The details do not match our records. Attempts remaining: ${remaining}. Let the caller try again. Do not reveal which detail was wrong.`;
   }),

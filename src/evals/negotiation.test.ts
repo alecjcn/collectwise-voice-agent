@@ -219,6 +219,28 @@ describe('negotiation agent', () => {
   });
 
   it(
+    'hangs up in the same turn as the goodbye after the caller wraps up',
+    { timeout: 120000 },
+    async () => {
+      await startVerified();
+      await session.run({ userInput: 'What do I owe?' }).wait();
+      // Finalize + recap turn (end_call must NOT fire here; asserted elsewhere).
+      await session
+        .run({ userInput: "You know what, fine. I'll just pay the whole balance today." })
+        .wait();
+      // The caller acknowledges the recap; the agent typically wraps up here,
+      // often with a farewell of its own.
+      await session.run({ userInput: "Okay, alright, that's fine." }).wait();
+      // The caller returns the farewell. Wherever the goodbye lands, the turn
+      // that says it must also hang up: an agent that says goodbye and then
+      // waits leaves the caller in a silent, open room.
+      const result = await session.run({ userInput: 'Yep, thanks. You too.' }).wait();
+
+      result.expect.containsFunctionCall({ name: 'end_call' });
+    },
+  );
+
+  it(
     'responds to an interruption instead of resuming the cut-off sentence',
     { timeout: 150000 },
     async () => {

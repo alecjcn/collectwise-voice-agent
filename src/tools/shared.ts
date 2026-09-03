@@ -42,7 +42,7 @@ export function traced<A, R>(
 export function createEndCall() {
   return beta.createEndCallTool<CallState>({
     extraDescription:
-      'Also call this after wrapping up a completed call: an outcome must already be recorded (finalizeAgreement or recordCallOutcome) and you must have said goodbye first. The call cuts off the moment your current speech finishes, so your goodbye MUST already be spoken: either in an earlier message, or as text you generate in this same turn BEFORE calling end_call. Never call end_call from a turn with no spoken text unless you already said goodbye - a silent hangup is never acceptable. Never call it in the same turn as finalizeAgreement - the caller must hear the recap and respond before the call ends.',
+      'Also call this after wrapping up a completed call: an outcome must already be recorded (finalizeAgreement or recordCallOutcome) and the caller must have heard a goodbye. The goodbye and this tool call belong in the SAME reply: write the goodbye text, then call end_call immediately in that same reply. Never say goodbye and then wait for the caller to speak again - a goodbye without end_call strands the caller on a silent open line. If your previous message was already a goodbye, call end_call now without further text. Never call end_call with no goodbye spoken - a silent hangup is never acceptable. Never call it in the same turn as finalizeAgreement - the caller must hear the recap and respond before the call ends.',
     // This instruction fills the one reply generated after end_call. It must
     // handle both cases: rescue a silent hangup (the model sometimes calls
     // end_call without having spoken) with a goodbye, while producing nothing
@@ -126,6 +126,6 @@ export const recordCallOutcome = llm.tool({
     });
     state.outcomeRecorded = true;
     state.trace.event('outcome', { outcome, notes });
-    return `Outcome recorded as ${outcome}. Say a brief goodbye to the caller now, then call end_call - never hang up without the spoken goodbye.`;
+    return `Outcome recorded as ${outcome}. Say a brief goodbye and call end_call in this same reply - goodbye text first, then the tool call. Never say goodbye without end_call, and never hang up without the spoken goodbye.`;
   }),
 });
