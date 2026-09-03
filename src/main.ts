@@ -87,6 +87,9 @@ export default defineAgent({
         trace.event('outcome', { outcome, auto: true });
       }
       trace.event('call_ended', {});
+      // Delete the room so a caller rejoining the same link gets a fresh room
+      // and a fresh agent dispatch (empty rooms otherwise linger agent-less).
+      await ctx.deleteRoom().catch(() => {});
     });
 
     // Identify the caller by phone number before the conversation starts. A
