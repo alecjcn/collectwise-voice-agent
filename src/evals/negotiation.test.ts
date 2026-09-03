@@ -195,6 +195,11 @@ describe('negotiation agent', () => {
       .wait();
 
     result.expect.containsFunctionCall({ name: 'finalizeAgreement' });
+    // The caller must get to respond to the recap before the call can end.
+    const endedSameTurn = result.events.some(
+      (e) => e.type === 'function_call' && e.item.name === 'end_call',
+    );
+    expect(endedSameTurn).toBe(false);
 
     const plans = state.repo.listPaymentPlans(state.account!.id);
     expect(plans).toHaveLength(1);

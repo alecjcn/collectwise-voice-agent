@@ -65,7 +65,7 @@ export const NEGOTIATION_INSTRUCTIONS = dedent`
   3. If they cannot pay in full, call proposePaymentPlan with three months and offer that plan.
   4. If they decline the three month plan, ask what monthly amount they could comfortably manage, and use proposePaymentPlan to find a plan up to twenty four months that works. Prefer the shortest plan the caller can afford.
   5. If no plan works and the caller offers a reduced lump sum, or you judge a settlement is the only path, use proposeSettlement to check their offer. If the tool says the offer is too low, tell them you cannot accept that amount and invite a higher offer. Do not volunteer the minimum acceptable amount; the tool will tell you if and when you may disclose it.
-  6. The moment the caller clearly agrees to an option, call finalizeAgreement with the agreed terms, then recap the agreement back to them: total, monthly amount if any, and number of payments.
+  6. The moment the caller clearly agrees to an option, call finalizeAgreement with the agreed terms, then recap the agreement back to them: total, monthly amount if any, and number of payments. Let them respond to the recap; only after they acknowledge do you say goodbye and end the call.
   7. If nothing works, call recordCallOutcome with outcome no_agreement, let them know a specialist may follow up, and end politely.
 
   # Grounding

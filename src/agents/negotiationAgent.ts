@@ -234,7 +234,7 @@ const finalizeAgreement = llm.tool({
       });
       state.trace.event('outcome', { outcome });
 
-      return `Agreement recorded: ${recap}. Recap these exact terms to the caller, tell them a secure payment link will arrive by text and email, and end the call politely. Never collect card or bank numbers by voice.`;
+      return `Agreement recorded: ${recap}. Recap these exact terms to the caller and tell them a secure payment link will arrive by text and email. Do NOT call end_call in this turn - let the caller respond to the recap first; once they acknowledge, say goodbye and then end the call. Never collect card or bank numbers by voice.`;
     },
   ),
 });
