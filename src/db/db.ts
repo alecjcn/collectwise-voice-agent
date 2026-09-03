@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS call_outcomes (
   outcome TEXT NOT NULL CHECK (outcome IN (
     'promise_to_pay_full', 'payment_plan_agreed', 'settlement_agreed',
     'wrong_person', 'verification_failed', 'account_not_found',
-    'dispute', 'escalated', 'callback_requested', 'no_agreement', 'incomplete'
+    'dispute', 'escalated', 'callback_requested', 'no_agreement', 'no_balance_due', 'incomplete'
   )),
   notes TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))

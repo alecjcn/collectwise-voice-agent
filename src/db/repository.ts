@@ -14,6 +14,7 @@ export type CallOutcome =
   | 'escalated'
   | 'callback_requested'
   | 'no_agreement'
+  | 'no_balance_due'
   | 'incomplete';
 
 export type PlanType = 'pay_in_full' | 'installments' | 'settlement';

@@ -24,9 +24,16 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
 function describeAccount(account: Account): string {
   const statusText = STATUS_DESCRIPTIONS[account.status] ?? account.status;
   if (account.balanceCents <= 0) {
-    return `Account ${account.accountNumber} for ${account.debtorName} has a zero balance and is ${statusText}. No payment is due; do not attempt to collect.`;
+    return `Account ${account.accountNumber} for ${account.debtorName} has a zero balance and is ${statusText}. No payment is due; do not attempt to collect. Before ending this call, record the outcome no_balance_due with recordCallOutcome.`;
   }
-  return `Account ${account.accountNumber} for ${account.debtorName}, originally with ${account.clientName}. Current balance: ${formatCents(account.balanceCents)}. Status: ${statusText}.`;
+  const base = `Account ${account.accountNumber} for ${account.debtorName}, originally with ${account.clientName}. Current balance: ${formatCents(account.balanceCents)}. Status: ${statusText}.`;
+  // Precompute the standard opening offer so the first counter-proposal
+  // needs no tool round-trip and the model never invents plan numbers.
+  if (account.status === 'delinquent') {
+    const anchor = computeInstallmentPlan(account.balanceCents, 3);
+    return `${base} Standard opening payment plan (offer these exact amounts if the caller cannot pay in full): 3 months - 2 monthly payments of ${formatCents(anchor.monthlyCents)}, then a final payment of ${formatCents(anchor.finalCents)}.`;
+  }
+  return base;
 }
 
 /**

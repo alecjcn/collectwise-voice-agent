@@ -63,7 +63,7 @@ export const NEGOTIATION_INSTRUCTIONS = dedent`
 
   1. Thank the caller for verifying. Call getAccountDetails, then explain the balance and account status in plain, everyday language.
   2. Ask if they are able to take care of the full balance today.
-  3. If they cannot pay in full, call proposePaymentPlan with three months and offer that plan.
+  3. If they cannot pay in full, offer the standard three month plan immediately, using the exact amounts from the account details - you already have these numbers, so no tool call is needed for this standard offer.
   4. If they decline the three month plan, ask what monthly amount they could comfortably manage, then call proposePaymentPlan with that amount as monthlyAmountDollars - the tool computes the shortest plan that fits, or the closest allowed payment when nothing does. Never convert a monthly amount into a number of months yourself; pass the caller's number straight to the tool and offer exactly what it returns.
   5. If no plan works and the caller offers a reduced lump sum, or you judge a settlement is the only path, use proposeSettlement to check their offer. If the tool says the offer is too low, tell them you cannot accept that amount and invite a higher offer. Do not volunteer the minimum acceptable amount; the tool will tell you if and when you may disclose it.
   6. The moment the caller clearly agrees to an option, call finalizeAgreement with the agreed terms, then recap the agreement back to them: total, monthly amount if any, and number of payments. Let them respond to the recap; only once they acknowledge do you call end_call. If they interrupt the recap to confirm, do not restate or continue the remaining terms - briefly confirm the agreement is set and make sure they know a secure payment link is coming; when they are done, call end_call.
@@ -97,7 +97,7 @@ export const NEGOTIATION_INSTRUCTIONS = dedent`
   - Hardship: if the caller describes financial hardship such as job loss, medical issues, or inability to meet basic needs, acknowledge it with genuine empathy and no pressure. Offer the longest available plans. If they still cannot manage anything, call escalateToHuman with reason hardship so a specialist can review assistance options, and record the outcome as escalated.
   - Human request: if the caller asks for a human, agent, or supervisor, call escalateToHuman with reason caller_requested and tell them a specialist will call them back within one business day.
   - Anger or confusion: when the caller is upset, your reply must FIRST acknowledge their frustration calmly, and only then gently return to how you can help. Never respond to an upset caller with a payment request alone. If the caller remains hostile or you cannot make progress after a couple of attempts, offer a specialist follow up via escalateToHuman with reason unable_to_proceed.
-  - Paid or closed accounts: if getAccountDetails shows a zero balance or a paid, settled, or closed status, tell the caller no payment is due, and do not attempt to collect.
+  - Paid or closed accounts: if the account shows a zero balance or a paid, settled, or closed status, tell the caller clearly that no payment is due and answer any questions they have - never hang up on an unanswered question. When they are done, call recordCallOutcome with outcome no_balance_due, then end_call.
   - Already disputed accounts: if the status is already in dispute, do not collect; confirm the dispute is under review and offer escalation for questions.
 
   # Ending every call

@@ -42,7 +42,7 @@ export function traced<A, R>(
 export function createEndCall() {
   return beta.createEndCallTool<CallState>({
     extraDescription:
-      'Also call this to wrap up a completed call: an outcome must already be recorded (finalizeAgreement or recordCallOutcome). Calling this tool generates the goodbye and hangs up after it finishes playing, so do NOT compose a farewell yourself - ending the call means calling this tool, nothing more. Never call it in the same turn as finalizeAgreement: the caller must hear the recap and respond first.',
+      'Also call this to wrap up a completed call: an outcome must already be recorded (finalizeAgreement or recordCallOutcome). Calling this tool generates the goodbye and hangs up after it finishes playing, so do NOT compose a farewell yourself - ending the call means calling this tool, nothing more. Never call it while the caller has an unanswered question: answer them first, and hang up only when they have nothing further. Never call it in the same turn as finalizeAgreement: the caller must hear the recap and respond first.',
     // The tool's designed flow: end_call generates the ONE goodbye (from this
     // instruction), waits for it to finish playing, then shuts down. Keeping
     // the goodbye here, rather than asking the model to pair farewell text
@@ -103,6 +103,7 @@ const recordableOutcomes = [
   'callback_requested',
   'escalated',
   'no_agreement',
+  'no_balance_due',
 ] as const;
 
 export const recordCallOutcome = llm.tool({

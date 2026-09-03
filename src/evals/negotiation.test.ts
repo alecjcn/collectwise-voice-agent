@@ -80,7 +80,8 @@ describe('negotiation agent', () => {
       .run({ userInput: "There's no way I can pay all of that at once." })
       .wait();
 
-    result.expect.containsFunctionCall({ name: 'proposePaymentPlan' });
+    // The standard opener is precomputed into the account context, so the
+    // offer must arrive immediately, with real amounts and no tool round-trip.
     await judgeTurn(judgeLlm, result, {
       intent: dedent`
           Offers a three month payment plan whose payments are each roughly eight

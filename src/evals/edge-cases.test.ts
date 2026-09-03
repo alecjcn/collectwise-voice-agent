@@ -115,18 +115,43 @@ describe('edge cases (verified caller)', () => {
     });
   });
 
-  it('does not collect on a zero-balance account', { timeout: 60000 }, async () => {
+  it('does not collect on a zero-balance account', { timeout: 90000 }, async () => {
     markVerified(state, '300105'); // Linda Okafor: $0, paid
     await session.start({ agent: createNegotiationAgent() });
     const result = await session
       .run({ userInput: 'I got a letter last year. Do I still owe you anything?' })
       .wait();
 
+    // The caller must hear that nothing is due - in the opening summary or the
+    // answer. Checked across the whole call so far, deterministically.
+    const spoken = session.history.items
+      .filter((item) => item.type === 'message' && item.role === 'assistant')
+      .map((item) => ('textContent' in item ? (item.textContent ?? '') : ''))
+      .join('\n');
+    expect(spoken).toMatch(
+      /no (outstanding |remaining )?balance|zero balance|paid in full|nothing (is )?(due|owed)|no payment is (due|needed|required)|do(n't| not) owe/i,
+    );
+
     await judgeTurn(judgeLlm, result, {
       intent: dedent`
-          Tells the caller the account is paid or has no balance due, and does not ask
-          for any payment.
+          The single criterion: the turn must not ask the caller for any payment or
+          state an amount owed. Anything else - answering, thanking, saying goodbye -
+          passes.
         `,
     });
+
+    // The call ends with the bookkeeping intact: a no_balance_due outcome and
+    // a hangup, whether the agent wrapped up immediately or after the caller
+    // closed the conversation.
+    const endedImmediately = result.events.some(
+      (e) => e.type === 'function_call' && e.item.name === 'end_call',
+    );
+    if (!endedImmediately) {
+      const wrapUp = await session
+        .run({ userInput: "Oh, that's a relief. That's all I needed, thanks." })
+        .wait();
+      wrapUp.expect.containsFunctionCall({ name: 'end_call' });
+    }
+    expect(state.repo.listOutcomes(state.callId).map((o) => o.outcome)).toContain('no_balance_due');
   });
 });
