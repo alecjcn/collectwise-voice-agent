@@ -40,8 +40,8 @@ function createSession(userData: CallState): voice.AgentSession<CallState> {
       language: 'en',
     }),
     tts: new inference.TTS({
-      model: 'fishaudio/s2.1-pro',
-      voice: 'fa4c9eb3dccc4806b382b40d61c6b10a',
+      model: process.env.TTS_MODEL ?? 'fishaudio/s2.1-pro',
+      voice: process.env.TTS_VOICE ?? 'fa4c9eb3dccc4806b382b40d61c6b10a',
     }),
     turnHandling: {
       turnDetection: new inference.TurnDetector(),

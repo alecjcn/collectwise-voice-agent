@@ -37,7 +37,7 @@ const lookupAccount = llm.tool({
       return 'No matching account was found. Ask the caller to double-check the number and try once more.';
     }
     state.account = account;
-    return `Account located. The name on file is ${account.debtorName}. Confirm you are speaking with ${account.debtorName} unless they already introduced themselves by that name, then verify their identity before discussing anything about the account.`;
+    return `Account located. The name on file is ${account.debtorName}. If the caller already introduced themselves by this name (first name is enough), do not re-confirm it. If they already spoke their SSN last four, call verifyIdentity with those digits right now; otherwise ask for them once.`;
   }),
 });
 
@@ -55,7 +55,7 @@ const verifyIdentity = llm.tool({
     const state = ctx.userData;
     const account = state.account;
     if (!account) {
-      return 'No account has been located yet. Use lookupAccount first.';
+      return 'No account has been located yet. Ask for the account number or the phone number on file and call lookupAccount - but remember the SSN digits the caller just gave, and verify with them immediately once the account is found instead of asking again.';
     }
     if (state.verified) {
       return 'Identity is already verified.';
@@ -80,7 +80,8 @@ const verifyIdentity = llm.tool({
       state.trace.event('state_transition', { from: 'unverified', to: 'verified' });
       return llm.handoff({
         agent: createNegotiationAgent({ chatCtx: ctx.session.chatCtx, account }),
-        returns: 'Identity verified successfully.',
+        returns:
+          'Identity verified. Thank the caller briefly, then explain the balance and account status from the account on file in plain language, and ask if they can take care of the full balance today.',
       });
     }
 

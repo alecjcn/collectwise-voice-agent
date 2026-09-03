@@ -261,6 +261,50 @@ describe('verification agent', () => {
     },
   );
 
+  it(
+    'uses a volunteered name and account number without re-asking',
+    { timeout: 90000 },
+    async () => {
+      await session.start({ agent: createVerificationAgent() });
+
+      // The caller front-loads name + account number in one turn.
+      const result = await session
+        .run({ userInput: 'Yes, my name is Maria and my account number is ATL1001.' })
+        .wait();
+
+      // The lookup must happen in that same turn, and the only remaining ask is the SSN.
+      expect(state.account?.accountNumber).toBe('ATL-1001');
+      await judgeTurn(judgeLlm, result, {
+        intent: dedent`
+        Asks only for the last four digits of the caller's social security number.
+        Must NOT ask the caller to confirm or repeat their name, and must NOT ask
+        for the account number again.
+      `,
+      });
+
+      const verifyResult = await session.run({ userInput: '7301.' }).wait();
+      expect(state.verified).toBe(true);
+      verifyResult.expect.containsAgentHandoff();
+    },
+  );
+
+  it('remembers an early-volunteered SSN instead of asking again', { timeout: 90000 }, async () => {
+    await session.start({ agent: createVerificationAgent() });
+
+    // SSN arrives before the account is located; the digits must be kept and
+    // used the moment the lookup succeeds - never requested a second time.
+    await session
+      .run({
+        userInput:
+          'Hi, this is Maria Gonzalez, last four of my social are 7301. I got a letter about my account.',
+      })
+      .wait();
+    await session.run({ userInput: 'The account number is ATL-1001.' }).wait();
+
+    expect(state.account?.accountNumber).toBe('ATL-1001');
+    expect(state.verified).toBe(true);
+  });
+
   it('handles an account that cannot be found', { timeout: 90000 }, async () => {
     await session.start({ agent: createVerificationAgent() });
 
