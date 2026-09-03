@@ -22,9 +22,8 @@ describe('negotiation agent', () => {
   });
 
   afterEach(async () => {
-    // close() can throw if the model already ended the call (session.shutdown
-    // + close race in the SDK); cleanup of the LLM connections must still run
-    // or leaked connections poison every later test in the worker.
+    // close() may reject when the model already hung up via end_call; the
+    // LLM connections must be released regardless.
     await session?.close().catch(() => {});
     await judgeLlm?.aclose().catch(() => {});
     await agentLlm?.aclose().catch(() => {});
