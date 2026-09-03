@@ -89,12 +89,15 @@ export default defineAgent({
       trace.event('call_ended', {});
     });
 
-    // Delete the room the moment the session closes, so a caller rejoining the
-    // same link gets a fresh room and a fresh agent dispatch. Job shutdown
-    // callbacks would be too late: they run after the session report upload,
-    // ~40 seconds during which the stale room lingers agent-less.
+    // When the session closes, delete the room and end the job immediately.
+    // Both matter for rejoining the same link: the stale room must go so a
+    // rejoin creates a fresh room, and the job must end promptly because Cloud
+    // dispatch dedupes a recreated room name against a still-live job (the job
+    // otherwise lingers ~40s uploading its session report, during which
+    // rejoins get no agent).
     session.on(voice.AgentSessionEventTypes.Close, () => {
       void ctx.deleteRoom().catch(() => {});
+      ctx.shutdown('session closed');
     });
 
     // Identify the caller by phone number before the conversation starts. A
