@@ -1,5 +1,6 @@
 import { llm, voice } from '@livekit/agents';
 import { z } from 'zod';
+import { interruptionAwareLlmNode } from '../interruptions.ts';
 import { MAX_VERIFICATION_ATTEMPTS, normalizeAccountNumber } from '../policy.ts';
 import { VERIFICATION_INSTRUCTIONS, VOICE_RULES, callerLocatedContext } from '../prompts.ts';
 import type { CallState } from '../state.ts';
@@ -130,6 +131,7 @@ export function createVerificationAgent(options?: {
   return voice.Agent.create<CallState>({
     id: 'verification',
     instructions: `${VERIFICATION_INSTRUCTIONS}${context}\n\n${VOICE_RULES}`,
+    llmNode: interruptionAwareLlmNode,
     tools: [lookupAccount, verifyIdentity, escalateToHuman, recordCallOutcome, createEndCall()],
   });
 }

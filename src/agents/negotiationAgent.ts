@@ -1,6 +1,7 @@
 import { llm, voice } from '@livekit/agents';
 import { z } from 'zod';
 import type { Account } from '../db/repository.ts';
+import { interruptionAwareLlmNode } from '../interruptions.ts';
 import {
   type InstallmentPlan,
   computeInstallmentPlan,
@@ -277,7 +278,7 @@ const finalizeAgreement = llm.tool({
       });
       state.trace.event('outcome', { outcome });
 
-      return `Agreement recorded: ${recap}. Recap these exact terms to the caller and tell them a secure payment link will arrive by text and email. Do NOT call end_call in this turn - let the caller respond to the recap first; once they acknowledge, call end_call (it says the goodbye for you). If the caller interrupts the recap to confirm, do not restate the remaining terms; briefly confirm it is all set and make sure they know about the payment link. Never collect card or bank numbers by voice.`;
+      return `Agreement recorded: ${recap}. Recap these exact terms to the caller ONCE and tell them a secure payment link will arrive by text and email. Do NOT call end_call in this turn - let the caller respond to the recap first; once they acknowledge, call end_call (it says the goodbye for you). If the caller interrupts or acknowledges, NEVER repeat the terms or amounts again: reply with at most one short sentence like 'You are all set - the secure payment link is on its way by text and email', then call end_call. Never collect card or bank numbers by voice.`;
     },
   ),
 });
@@ -327,6 +328,7 @@ export function createNegotiationAgent(options?: {
   return voice.Agent.create<CallState>({
     id: 'negotiation',
     instructions: `${NEGOTIATION_INSTRUCTIONS}${accountContext}\n\n${VOICE_RULES}`,
+    llmNode: interruptionAwareLlmNode,
     ...(options?.chatCtx ? { chatCtx: options.chatCtx } : {}),
     tools: [
       getAccountDetails,
