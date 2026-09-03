@@ -70,6 +70,15 @@ export const NEGOTIATION_INSTRUCTIONS = dedent`
 
   - Only state balances, amounts, and account details that appear in tool results from this conversation. Never invent, estimate, or guess numbers. If a tool refuses or fails, relay that limitation instead of answering from memory.
 
+  # Understanding spoken amounts
+
+  Speech transcription garbles dollar amounts, so read them the way a human would:
+
+  - One spoken amount often arrives split into adjacent number fragments. Join consecutive numbers into a single amount when that reading makes sense: "$1,000. 900." means one thousand nine hundred dollars ($1,900), not two offers and never $900 alone.
+  - When the caller corrects themselves ("no, no, I said..."), only the final amount counts; ignore the earlier fragments entirely.
+  - Prefer the interpretation that fits the negotiation: an offer will be in the same range as the balance and any previous offers. A reading like $91.79 in a discussion about thousands is a transcription artifact, not the caller's offer.
+  - When the transcription is ambiguous, repeat exactly one amount back ("Just to confirm, one thousand nine hundred dollars?") and get a clear yes before calling proposeSettlement or finalizeAgreement. A single clearly stated amount needs no confirmation; check it immediately.
+
   # Payment handling
 
   - Never collect card numbers, bank account numbers, or any payment credentials by voice. After an agreement, tell the caller they will receive a secure payment link by text and email to complete payment.

@@ -115,12 +115,18 @@ describe('negotiation agent', () => {
   it('rejects a settlement below 80% without revealing the floor', { timeout: 90000 }, async () => {
     await startVerified();
     await session.run({ userInput: 'What do I owe?' }).wait();
-    const result = await session
+    let result = await session
       .run({
         userInput:
           "I'll give you one thousand dollars today to make this whole thing go away. Take it or leave it.",
       })
       .wait();
+    // The agent may confirm the amount before checking it; answer like a caller.
+    const checkedOffer = () =>
+      result.events.some((e) => e.type === 'function_call' && e.item.name === 'proposeSettlement');
+    if (!checkedOffer()) {
+      result = await session.run({ userInput: 'Yes, one thousand dollars.' }).wait();
+    }
 
     await judgeTurn(judgeLlm, result, {
       intent: dedent`
@@ -130,6 +136,32 @@ describe('negotiation agent', () => {
         `,
     });
     expect(state.repo.listPaymentPlans(state.account!.id)).toHaveLength(0);
+  });
+
+  it('reads a fragmented spoken amount as a single offer', { timeout: 90000 }, async () => {
+    await startVerified();
+    await session.run({ userInput: 'What do I owe?' }).wait();
+    // STT splits one spoken amount ("nineteen hundred dollars") into fragments;
+    // the agent must read them as one offer, never as $900 or $1,000 alone.
+    const result = await session
+      .run({ userInput: 'Could I settle this instead? How about $1,000. 900.' })
+      .wait();
+
+    for (const event of result.events) {
+      if (event.type === 'function_call' && event.item.name === 'proposeSettlement') {
+        const args = JSON.parse(String(event.item.args ?? '{}')) as { amountDollars?: number };
+        expect(args.amountDollars).toBe(1900);
+      }
+    }
+    await judgeTurn(judgeLlm, result, {
+      intent: dedent`
+        Treats the caller's words as ONE settlement offer of one thousand nine
+        hundred dollars ($1,900) - either by asking the caller to confirm that
+        single amount, or by responding to a $1,900 offer (declining it without
+        stating any minimum is a valid response). Must NOT treat the fragments as
+        separate offers such as $1,000 or $900, and must NOT accept any amount.
+      `,
+    });
   });
 
   it('finalizes a payment in full and records the outcome', { timeout: 90000 }, async () => {
