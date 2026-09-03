@@ -67,26 +67,15 @@ export class Repository {
   }
 
   /**
-   * Find an account by number, tolerant of spoken formats. Separators and case
-   * are ignored ("ATL 1003" matches "ATL-1003"), and because STT mangles the
-   * letter prefix ("a t l" arrives as "TL" or nothing), the digits decide:
-   * an input carrying at least 4 digits matches when those digits are the
-   * unique suffix of exactly one account number. Wrong digits never match.
+   * Find an account by its number. Account numbers are all-digit, so the
+   * comparison is on the digits alone - separators, stray words, and spoken
+   * punctuation are ignored ("300 103" and "number 300103." match "300103").
    */
   findAccountByNumber(accountNumber: string): Account | undefined {
-    const normalized = normalizeAccountNumber(accountNumber);
-    if (!normalized) return undefined;
+    const digits = normalizeAccountNumber(accountNumber);
+    if (!digits) return undefined;
     const accounts = this.db.prepare('SELECT * FROM accounts').all().map(rowToAccount);
-    const exact = accounts.find((a) => normalizeAccountNumber(a.accountNumber) === normalized);
-    if (exact) return exact;
-    const digits = normalized.replace(/[^0-9]/g, '');
-    if (digits.length >= 4) {
-      const suffixMatches = accounts.filter((a) =>
-        normalizeAccountNumber(a.accountNumber).endsWith(digits),
-      );
-      if (suffixMatches.length === 1) return suffixMatches[0];
-    }
-    return undefined;
+    return accounts.find((a) => normalizeAccountNumber(a.accountNumber) === digits);
   }
 
   findAccountByPhone(phone: string): Account | undefined {

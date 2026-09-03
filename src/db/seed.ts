@@ -4,7 +4,7 @@ import { type Account, Repository } from './repository.ts';
 
 export const SEED_ACCOUNTS: Omit<Account, 'id'>[] = [
   {
-    accountNumber: 'ATL-1001',
+    accountNumber: '300101',
     debtorName: 'Maria Gonzalez',
     phoneNumber: '+15550104821',
     last4Ssn: '7301',
@@ -13,7 +13,7 @@ export const SEED_ACCOUNTS: Omit<Account, 'id'>[] = [
     clientName: 'Alpha Bank',
   },
   {
-    accountNumber: 'ATL-1002',
+    accountNumber: '300102',
     debtorName: 'David Chen',
     phoneNumber: '+15550103390',
     last4Ssn: '5544',
@@ -22,7 +22,7 @@ export const SEED_ACCOUNTS: Omit<Account, 'id'>[] = [
     clientName: 'Alpha Bank',
   },
   {
-    accountNumber: 'ATL-1003',
+    accountNumber: '300103',
     debtorName: 'Sarah Whitmore',
     phoneNumber: '+15550107712',
     last4Ssn: '9012',
@@ -31,7 +31,7 @@ export const SEED_ACCOUNTS: Omit<Account, 'id'>[] = [
     clientName: 'Alpha Bank',
   },
   {
-    accountNumber: 'ATL-1004',
+    accountNumber: '300104',
     debtorName: 'James Patel',
     phoneNumber: '+15550106655',
     last4Ssn: '3376',
@@ -40,7 +40,7 @@ export const SEED_ACCOUNTS: Omit<Account, 'id'>[] = [
     clientName: 'Alpha Bank',
   },
   {
-    accountNumber: 'ATL-1005',
+    accountNumber: '300105',
     debtorName: 'Linda Okafor',
     phoneNumber: '+15550102218',
     last4Ssn: '8845',

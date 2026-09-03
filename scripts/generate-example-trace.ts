@@ -33,7 +33,7 @@ trace.event('call_started', { room: 'example' });
 await session.start({ agent: createVerificationAgent() });
 
 const turns = [
-  'Hi, I got a letter from you about my account. My account number is ATL-1001.',
+  'Hi, I got a letter from you about my account. My account number is 300101.',
   'Yes, this is Maria. Maria Gonzalez, and the last four of my social are 7301.',
   "Oh wow, that's a lot. There's no way I can pay all of that today.",
   'Even three months is too much for me right now. I could maybe do about two hundred fifty a month.',

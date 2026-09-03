@@ -28,7 +28,7 @@ describe('edge cases (verified caller)', () => {
   });
 
   async function startVerified() {
-    markVerified(state, 'ATL-1001');
+    markVerified(state, '300101');
     await session.start({ agent: createNegotiationAgent() });
   }
 
@@ -116,7 +116,7 @@ describe('edge cases (verified caller)', () => {
   });
 
   it('does not collect on a zero-balance account', { timeout: 60000 }, async () => {
-    markVerified(state, 'ATL-1005'); // Linda Okafor: $0, paid
+    markVerified(state, '300105'); // Linda Okafor: $0, paid
     await session.start({ agent: createNegotiationAgent() });
     const result = await session
       .run({ userInput: 'I got a letter last year. Do I still owe you anything?' })

@@ -6,7 +6,7 @@ import { AGENT_MODEL, JUDGE_MODEL, createTestState, judgeTurn, markVerified } fr
 
 initializeLogger({ pretty: false, level: 'warn' });
 
-// Seed account ATL-1001 (Maria Gonzalez): $2,489.75, delinquent.
+// Seed account 300101 (Maria Gonzalez): $2,489.75, delinquent.
 
 describe('negotiation agent', () => {
   let session: voice.AgentSession<CallState>;
@@ -30,7 +30,7 @@ describe('negotiation agent', () => {
   });
 
   async function startVerified() {
-    markVerified(state, 'ATL-1001');
+    markVerified(state, '300101');
     await session.start({ agent: createNegotiationAgent() });
   }
 
@@ -40,7 +40,7 @@ describe('negotiation agent', () => {
     async () => {
       // Post-verification path: the handoff passes the account into the agent
       // factory, so the details live in its instructions.
-      const account = markVerified(state, 'ATL-1001');
+      const account = markVerified(state, '300101');
       await session.start({ agent: createNegotiationAgent({ account }) });
 
       const result = await session.run({ userInput: 'Okay, so what exactly do I owe?' }).wait();
@@ -223,7 +223,7 @@ describe('negotiation agent', () => {
     { timeout: 60000 },
     async () => {
       // Simulate a mis-wired session: negotiation agent active but caller never verified.
-      state.account = state.repo.findAccountByNumber('ATL-1001')!;
+      state.account = state.repo.findAccountByNumber('300101')!;
       state.verified = false;
       await session.start({ agent: createNegotiationAgent() });
 

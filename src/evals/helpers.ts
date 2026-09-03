@@ -120,7 +120,7 @@ export function createTestState(): CallState {
  * caller had passed the verification phase. Used to test the negotiation
  * agent in isolation.
  */
-export function markVerified(state: CallState, accountNumber = 'ATL-1001'): Account {
+export function markVerified(state: CallState, accountNumber = '300101'): Account {
   const account = markLocated(state, accountNumber);
   state.verified = true;
   return account;
@@ -132,7 +132,7 @@ export function markVerified(state: CallState, accountNumber = 'ATL-1001'): Acco
  * `createVerificationAgent({ locatedFirstName })` so the prompt matches the
  * state, exactly as main.ts wires the caller-ID flow.
  */
-export function markLocated(state: CallState, accountNumber = 'ATL-1001'): Account {
+export function markLocated(state: CallState, accountNumber = '300101'): Account {
   const account = state.repo.findAccountByNumber(accountNumber);
   if (!account) throw new Error(`Seed account ${accountNumber} not found`);
   state.account = account;

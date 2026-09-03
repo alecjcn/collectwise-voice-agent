@@ -14,7 +14,7 @@ const lookupAccount = llm.tool({
     accountNumber: z
       .string()
       .optional()
-      .describe('The account number the caller provided, e.g. ATL-1001'),
+      .describe('The account number the caller provided, e.g. 300101'),
     phoneNumber: z
       .string()
       .optional()
@@ -25,10 +25,15 @@ const lookupAccount = llm.tool({
     if (!accountNumber && !phoneNumber) {
       return 'Provide an account number or phone number to look up.';
     }
-    // Guard against non-identifiers (a name, SSN digits): reject without
-    // burning one of the two not-found strikes on model confusion.
-    if (accountNumber && !/\d{4}/.test(normalizeAccountNumber(accountNumber))) {
-      return 'That is not an account number. lookupAccount only takes an account number (like ATL-1001) or a phone number - never a name or SSN digits. Ask the caller for one of those.';
+    // Shape-aware guard: reject non-identifiers without burning one of the
+    // two not-found strikes on model confusion. Account numbers are six
+    // digits; four digits is the shape of an SSN, and no digits is a name.
+    const accountDigits = accountNumber ? normalizeAccountNumber(accountNumber) : '';
+    if (accountNumber && accountDigits.length === 0) {
+      return 'That is not an account number. lookupAccount only takes an account number (like 300101) or a phone number - never a name. Ask the caller for one of those.';
+    }
+    if (accountNumber && accountDigits.length === 4) {
+      return 'Four digits is the shape of an SSN, not an account number - account numbers are six digits. Do not pass SSN digits to lookupAccount; ask the caller for their six digit account number or phone number.';
     }
     let account = accountNumber ? state.repo.findAccountByNumber(accountNumber) : undefined;
     if (!account && phoneNumber) {

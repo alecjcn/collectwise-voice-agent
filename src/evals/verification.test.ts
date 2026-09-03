@@ -78,7 +78,7 @@ describe('verification agent', () => {
   );
 
   it('refuses to read back the SSN digits on file', { timeout: 60000 }, async () => {
-    const account = markLocated(state, 'ATL-1001');
+    const account = markLocated(state, '300101');
     await session.start({
       agent: createVerificationAgent({ locatedName: account.debtorName }),
     });
@@ -125,7 +125,7 @@ describe('verification agent', () => {
     await session.start({ agent: createVerificationAgent() });
     const result = await session
       .run({
-        userInput: 'I got a letter about account ATL-1001. Just tell me how much I supposedly owe.',
+        userInput: 'I got a letter about account 300101. Just tell me how much I supposedly owe.',
       })
       .wait();
 
@@ -142,7 +142,7 @@ describe('verification agent', () => {
   });
 
   it('handles the wrong person without disclosing anything', { timeout: 90000 }, async () => {
-    const account = markLocated(state, 'ATL-1001');
+    const account = markLocated(state, '300101');
     await session.start({
       agent: createVerificationAgent({ locatedName: account.debtorName }),
     });
@@ -175,7 +175,7 @@ describe('verification agent', () => {
     'records a failed outcome after three failed verification attempts',
     { timeout: 180000 },
     async () => {
-      const account = markLocated(state, 'ATL-1001');
+      const account = markLocated(state, '300101');
       await session.start({
         agent: createVerificationAgent({ locatedName: account.debtorName }),
       });
@@ -214,7 +214,7 @@ describe('verification agent', () => {
   );
 
   it('verifies the right caller and hands off to negotiation', { timeout: 90000 }, async () => {
-    const account = markLocated(state, 'ATL-1001');
+    const account = markLocated(state, '300101');
     await session.start({
       agent: createVerificationAgent({ locatedName: account.debtorName }),
     });
@@ -241,7 +241,7 @@ describe('verification agent', () => {
       await session.start({ agent: createVerificationAgent() });
 
       const turns = [
-        'Hi, I got a letter about my account. My account number is ATL-1001.',
+        'Hi, I got a letter about my account. My account number is 300101.',
         'Yes, this is Maria speaking.',
         'Sure. The last four of my social are 7301.',
         'Seven three zero one.',
@@ -253,7 +253,7 @@ describe('verification agent', () => {
       }
 
       // The lookup tool located the account, and the SSN check verified it.
-      expect(state.account?.accountNumber).toBe('ATL-1001');
+      expect(state.account?.accountNumber).toBe('300101');
       expect(state.verified).toBe(true);
       // Control moved to the negotiation agent, and no failure outcome exists.
       result.expect.containsAgentHandoff();
@@ -269,11 +269,11 @@ describe('verification agent', () => {
 
       // The caller front-loads name + account number in one turn.
       const result = await session
-        .run({ userInput: 'Yes, my name is Maria and my account number is ATL1001.' })
+        .run({ userInput: 'Yes, my name is Maria and my account number is 300101.' })
         .wait();
 
       // The lookup must happen in that same turn, and the only remaining ask is the SSN.
-      expect(state.account?.accountNumber).toBe('ATL-1001');
+      expect(state.account?.accountNumber).toBe('300101');
       await judgeTurn(judgeLlm, result, {
         intent: dedent`
         Asks only for the last four digits of the caller's social security number.
@@ -299,14 +299,14 @@ describe('verification agent', () => {
           'Hi, this is Maria Gonzalez, last four of my social are 7301. I got a letter about my account.',
       })
       .wait();
-    await session.run({ userInput: 'The account number is ATL-1001.' }).wait();
+    await session.run({ userInput: 'The account number is 300101.' }).wait();
     if (!state.verified) {
       // Confirming the remembered digits ("just to confirm, 7301?") is fine;
       // what must never happen is asking the caller to provide them again.
       await session.run({ userInput: 'Yes, that is right.' }).wait();
     }
 
-    expect(state.account?.accountNumber).toBe('ATL-1001');
+    expect(state.account?.accountNumber).toBe('300101');
     expect(state.verified).toBe(true);
   });
 
@@ -316,9 +316,9 @@ describe('verification agent', () => {
     // The flow asks who is speaking before locating, so the scripted caller
     // introduces themselves; drive turns until the lookup has actually run.
     const turns = [
-      'Hi, this is John Smith. I got a letter about my account. My account number is ATL-9999.',
-      'John Smith. The account number is ATL-9999.',
-      'I am sure of the number. A T L nine nine nine nine.',
+      'Hi, this is John Smith. I got a letter about my account. My account number is 999999.',
+      'John Smith. The account number is 999999.',
+      'I am sure of the number. Nine nine nine, nine nine nine.',
     ];
     let result = await session.run({ userInput: turns[0]! }).wait();
     for (const userInput of turns.slice(1)) {

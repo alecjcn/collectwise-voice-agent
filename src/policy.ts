@@ -61,9 +61,9 @@ export function validateSettlementOffer(
   return { acceptable: true, minCents };
 }
 
-/** Reduce any spoken/stored account number format ("ATL 1003", "atl-1003") for comparison. */
+/** Reduce any spoken account number ("300 103", "number 300103.") to its digits. */
 export function normalizeAccountNumber(accountNumber: string): string {
-  return accountNumber.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return accountNumber.replace(/\D/g, '');
 }
 
 /** Reduce any spoken/stored phone format to its last 10 digits for comparison. */

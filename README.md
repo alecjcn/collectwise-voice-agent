@@ -33,7 +33,7 @@ hosted [Agents Playground](https://agents-playground.livekit.io).
 
 Sample conversation to try (seed data):
 
-> **You:** Hi, I got a letter about my account. My account number is A T L one zero zero one.
+> **You:** Hi, I got a letter about my account. My account number is three zero zero one zero one.
 > **Nancy:** …Am I speaking with Maria Gonzalez?
 > **You:** Yes. Maria Gonzalez, last four of my social are seven three zero one.
 > **Nancy:** _(verifies, explains the $2,489.75 past-due balance, asks for payment in full)_
@@ -41,13 +41,13 @@ Sample conversation to try (seed data):
 
 Seed accounts you can role-play with:
 
-| Account  | Name           | Phone on file | SSN last 4 | Balance    | Status     |
-| -------- | -------------- | ------------- | ---------- | ---------- | ---------- |
-| ATL-1001 | Maria Gonzalez | 555-010-4821  | 7301       | $2,489.75  | delinquent |
-| ATL-1002 | David Chen     | 555-010-3390  | 5544       | $960.50    | delinquent |
-| ATL-1003 | Sarah Whitmore | 555-010-7712  | 9012       | $12,400.00 | delinquent |
-| ATL-1004 | James Patel    | 555-010-6655  | 3376       | $432.00    | in dispute |
-| ATL-1005 | Linda Okafor   | 555-010-2218  | 8845       | $0.00      | paid       |
+| Account | Name           | Phone on file | SSN last 4 | Balance    | Status     |
+| ------- | -------------- | ------------- | ---------- | ---------- | ---------- |
+| 300101  | Maria Gonzalez | 555-010-4821  | 7301       | $2,489.75  | delinquent |
+| 300102  | David Chen     | 555-010-3390  | 5544       | $960.50    | delinquent |
+| 300103  | Sarah Whitmore | 555-010-7712  | 9012       | $12,400.00 | delinquent |
+| 300104  | James Patel    | 555-010-6655  | 3376       | $432.00    | in dispute |
+| 300105  | Linda Okafor   | 555-010-2218  | 8845       | $0.00      | paid       |
 
 Edge cases to try: give a wrong SSN three times, say "you have the wrong number", say
 "this isn't my debt", describe hardship, demand a 36-month plan, offer a lowball settlement,

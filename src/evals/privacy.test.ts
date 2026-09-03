@@ -9,7 +9,7 @@ import { createTestState, markVerified } from './helpers.ts';
 describe('prompt privacy: stored secrets never enter instructions', () => {
   it('verification agent instructions carry no SSN digits or phone number', () => {
     const state = createTestState();
-    const account = markVerified(state, 'ATL-1001');
+    const account = markVerified(state, '300101');
 
     const agent = createVerificationAgent({ locatedName: account.debtorName });
     const instructions = String(agent.instructions);
@@ -24,7 +24,7 @@ describe('prompt privacy: stored secrets never enter instructions', () => {
 
   it('negotiation agent instructions carry account details but never the SSN digits', () => {
     const state = createTestState();
-    const account = markVerified(state, 'ATL-1001');
+    const account = markVerified(state, '300101');
 
     const agent = createNegotiationAgent({ account });
     const instructions = String(agent.instructions);
@@ -36,7 +36,7 @@ describe('prompt privacy: stored secrets never enter instructions', () => {
 
   it('no seed account has SSN digits that appear in its own injected context', () => {
     // Guard against coincidental overlap ever sneaking in via new seed data.
-    for (const accountNumber of ['ATL-1001', 'ATL-1002', 'ATL-1003', 'ATL-1004', 'ATL-1005']) {
+    for (const accountNumber of ['300101', '300102', '300103', '300104', '300105']) {
       const freshState = createTestState();
       const account = markVerified(freshState, accountNumber);
       const instructions = String(createNegotiationAgent({ account }).instructions);

@@ -19,28 +19,24 @@ describe('database', () => {
     expect(repo.countAccounts()).toBe(SEED_ACCOUNTS.length);
   });
 
-  it('finds accounts by number, case-insensitively', () => {
+  it('finds accounts by exact number', () => {
     const repo = freshRepo();
-    expect(repo.findAccountByNumber('atl-1001')?.debtorName).toBe('Maria Gonzalez');
-    expect(repo.findAccountByNumber('ATL-9999')).toBeUndefined();
+    expect(repo.findAccountByNumber('300101')?.debtorName).toBe('Maria Gonzalez');
+    expect(repo.findAccountByNumber('999999')).toBeUndefined();
   });
 
   it('finds accounts by number in any spoken format', () => {
     const repo = freshRepo();
-    // STT often drops the dash or inserts spaces.
-    expect(repo.findAccountByNumber('ATL 1003')?.debtorName).toBe('Sarah Whitmore');
-    expect(repo.findAccountByNumber('atl1003')?.debtorName).toBe('Sarah Whitmore');
-    expect(repo.findAccountByNumber('A T L 1003')?.debtorName).toBe('Sarah Whitmore');
-    // Digits only: match by unique suffix.
-    expect(repo.findAccountByNumber('1003')?.debtorName).toBe('Sarah Whitmore');
-    // STT often drops or garbles the letter prefix; the digits decide.
-    expect(repo.findAccountByNumber('TL1001')?.debtorName).toBe('Maria Gonzalez');
-    expect(repo.findAccountByNumber('tl 1001')?.debtorName).toBe('Maria Gonzalez');
-    // Wrong digits still never match, whatever the prefix.
-    expect(repo.findAccountByNumber('ATL-1000')).toBeUndefined();
-    // Too short or unmatchable digits must not guess.
-    expect(repo.findAccountByNumber('3')).toBeUndefined();
-    expect(repo.findAccountByNumber('9999')).toBeUndefined();
+    // STT inserts spaces and punctuation; only the digits matter.
+    expect(repo.findAccountByNumber('300 103')?.debtorName).toBe('Sarah Whitmore');
+    expect(repo.findAccountByNumber('300103')?.debtorName).toBe('Sarah Whitmore');
+    expect(repo.findAccountByNumber('3 0 0 1 0 3')?.debtorName).toBe('Sarah Whitmore');
+    expect(repo.findAccountByNumber('number 300101.')?.debtorName).toBe('Maria Gonzalez');
+    // Wrong, partial, or unknown digits never match.
+    expect(repo.findAccountByNumber('300100')).toBeUndefined();
+    expect(repo.findAccountByNumber('30101')).toBeUndefined();
+    expect(repo.findAccountByNumber('1003')).toBeUndefined();
+    expect(repo.findAccountByNumber('999999')).toBeUndefined();
   });
 
   it('finds accounts by phone in any spoken format', () => {
@@ -53,14 +49,14 @@ describe('database', () => {
 
   it('stores money as integer cents', () => {
     const repo = freshRepo();
-    const account = repo.findAccountByNumber('ATL-1001')!;
+    const account = repo.findAccountByNumber('300101')!;
     expect(Number.isInteger(account.balanceCents)).toBe(true);
     expect(account.balanceCents).toBe(248975);
   });
 
   it('round-trips payment plans, outcomes, and escalations', () => {
     const repo = freshRepo();
-    const account = repo.findAccountByNumber('ATL-1002')!;
+    const account = repo.findAccountByNumber('300102')!;
 
     repo.createPaymentPlan({
       accountId: account.id,
@@ -84,7 +80,7 @@ describe('database', () => {
 
   it('rejects invalid rows via CHECK constraints (last line of defense)', () => {
     const repo = freshRepo();
-    const account = repo.findAccountByNumber('ATL-1001')!;
+    const account = repo.findAccountByNumber('300101')!;
     expect(() =>
       repo.createPaymentPlan({
         accountId: account.id,
@@ -99,7 +95,7 @@ describe('database', () => {
 
   it('updates account status for disputes', () => {
     const repo = freshRepo();
-    const account = repo.findAccountByNumber('ATL-1001')!;
+    const account = repo.findAccountByNumber('300101')!;
     repo.updateAccountStatus(account.id, 'in_dispute');
     expect(repo.getAccountById(account.id)!.status).toBe('in_dispute');
   });
