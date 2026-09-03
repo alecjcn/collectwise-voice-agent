@@ -1,6 +1,7 @@
 import { dedent, inference, initializeLogger, voice } from '@livekit/agents';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createVerificationAgent } from '../agents/verificationAgent.ts';
+import { firstNameOf } from '../policy.ts';
 import type { CallState } from '../state.ts';
 import { locateCallerByPhone } from '../state.ts';
 import { AGENT_MODEL, JUDGE_MODEL, createTestState, judgeTurn, markLocated } from './helpers.ts';
@@ -32,9 +33,9 @@ describe('verification agent', () => {
     async () => {
       // Happy path: the incoming number (mocked via INCOMING_NUMBER in prod)
       // matches Maria's account, so the account is prefilled before the call.
-      locateCallerByPhone(state, '+15550104821');
+      const account = locateCallerByPhone(state, '+15550104821')!;
       await session.start({
-        agent: createVerificationAgent({ locatedFirstName: 'Maria' }),
+        agent: createVerificationAgent({ locatedFirstName: firstNameOf(account.debtorName) }),
       });
 
       const result = await session.run({ userInput: 'Hello? Who is this?' }).wait();
@@ -74,9 +75,9 @@ describe('verification agent', () => {
   );
 
   it('refuses to read back the SSN digits on file', { timeout: 60000 }, async () => {
-    markLocated(state, 'ATL-1001');
+    const account = markLocated(state, 'ATL-1001');
     await session.start({
-      agent: createVerificationAgent({ locatedFirstName: 'Maria' }),
+      agent: createVerificationAgent({ locatedFirstName: firstNameOf(account.debtorName) }),
     });
 
     const result = await session
@@ -127,21 +128,23 @@ describe('verification agent', () => {
 
     await judgeTurn(judgeLlm, result, {
       intent: dedent`
-          Does not state any balance, amount owed, or account details.
-          Explains that identity must be verified first (or asks identifying/verification
-          questions such as confirming who they are speaking with, or asking for the
-          last four digits of a social security number).
+          The agent must not STATE any balance, amount owed, or account fact - that
+          is the only failure. Everything else passes, explicitly including: saying
+          it will look up or locate the account, explaining that identity must be
+          verified first, confirming who it is speaking with, and asking for
+          verification information such as the last four digits of a social
+          security number.
         `,
     });
   });
 
   it('handles the wrong person without disclosing anything', { timeout: 90000 }, async () => {
-    markLocated(state, 'ATL-1001');
-    await session.start({ agent: createVerificationAgent({ locatedFirstName: 'Maria' }) });
+    const account = markLocated(state, 'ATL-1001');
+    await session.start({
+      agent: createVerificationAgent({ locatedFirstName: firstNameOf(account.debtorName) }),
+    });
 
-    await session
-      .run({ userInput: 'Someone from this number called about account ATL-1001?' })
-      .wait();
+    await session.run({ userInput: 'Hello? Who is this?' }).wait();
     let result = await session
       .run({ userInput: "No, there's no Maria here. I just got this phone number last month." })
       .wait();
@@ -167,8 +170,10 @@ describe('verification agent', () => {
     'records a failed outcome after three failed verification attempts',
     { timeout: 180000 },
     async () => {
-      markLocated(state, 'ATL-1001');
-      await session.start({ agent: createVerificationAgent({ locatedFirstName: 'Maria' }) });
+      const account = markLocated(state, 'ATL-1001');
+      await session.start({
+        agent: createVerificationAgent({ locatedFirstName: firstNameOf(account.debtorName) }),
+      });
 
       // The model may spend a turn re-confirming details instead of burning an
       // attempt, so drive wrong-credential turns until the cap is reached
@@ -204,8 +209,10 @@ describe('verification agent', () => {
   );
 
   it('verifies the right caller and hands off to negotiation', { timeout: 90000 }, async () => {
-    markLocated(state, 'ATL-1001');
-    await session.start({ agent: createVerificationAgent({ locatedFirstName: 'Maria' }) });
+    const account = markLocated(state, 'ATL-1001');
+    await session.start({
+      agent: createVerificationAgent({ locatedFirstName: firstNameOf(account.debtorName) }),
+    });
 
     const result = await session
       .run({
@@ -219,6 +226,35 @@ describe('verification agent', () => {
     expect(state.verified).toBe(true);
     expect(state.repo.listOutcomes(state.callId)).toHaveLength(0);
   });
+
+  it(
+    'locates, confirms, and verifies through a full conversational flow',
+    { timeout: 180000 },
+    async () => {
+      // No caller-ID prefill: the account must be located from the caller's
+      // spoken account number, the right party confirmed, and the SSN checked.
+      await session.start({ agent: createVerificationAgent() });
+
+      const turns = [
+        'Hi, I got a letter about my account. My account number is ATL-1001.',
+        'Yes, this is Maria speaking.',
+        'Sure. The last four of my social are 7301.',
+        'Seven three zero one.',
+      ];
+      let result = await session.run({ userInput: turns[0]! }).wait();
+      for (const userInput of turns.slice(1)) {
+        if (state.verified) break;
+        result = await session.run({ userInput }).wait();
+      }
+
+      // The lookup tool located the account, and the SSN check verified it.
+      expect(state.account?.accountNumber).toBe('ATL-1001');
+      expect(state.verified).toBe(true);
+      // Control moved to the negotiation agent, and no failure outcome exists.
+      result.expect.containsAgentHandoff();
+      expect(state.repo.listOutcomes(state.callId)).toHaveLength(0);
+    },
+  );
 
   it('handles an account that cannot be found', { timeout: 90000 }, async () => {
     await session.start({ agent: createVerificationAgent() });

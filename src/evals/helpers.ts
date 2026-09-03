@@ -127,8 +127,10 @@ export function markVerified(state: CallState, accountNumber = 'ATL-1001'): Acco
 }
 
 /**
- * Locate an account for the state without verifying, as if lookupAccount had
- * succeeded and the caller confirmed they are the account holder.
+ * Attach a located (but unverified) account to the state, as caller-ID lookup
+ * or the lookupAccount tool would. Pair it with
+ * `createVerificationAgent({ locatedFirstName })` so the prompt matches the
+ * state, exactly as main.ts wires the caller-ID flow.
  */
 export function markLocated(state: CallState, accountNumber = 'ATL-1001'): Account {
   const account = state.repo.findAccountByNumber(accountNumber);

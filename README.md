@@ -185,7 +185,8 @@ _database_ (outcome/plan/escalation rows).
 
 **Coverage:** caller-ID match (right-party confirmation by first name) and unknown-number
 fallback; greeting persona; pre-verification refusal; wrong person (no disclosure +
-outcome row); 3-strikes verification failure; successful verify → handoff; account not found;
+outcome row); 3-strikes verification failure; successful verify → handoff; a full conversational
+lookup → confirm → verify → handoff flow; account not found;
 balance explanation + pay-in-full-first; 3-month plan offer; 36-month refusal (and no plan row
 persisted); lowball settlement refusal without revealing the floor; pay-in-full finalization
 (plan + outcome rows); unverified-flag defense in depth; dispute (status flip + no further
