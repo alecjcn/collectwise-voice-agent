@@ -1,6 +1,6 @@
 import { llm, voice } from '@livekit/agents';
 import { z } from 'zod';
-import { MAX_VERIFICATION_ATTEMPTS } from '../policy.ts';
+import { MAX_VERIFICATION_ATTEMPTS, normalizeAccountNumber } from '../policy.ts';
 import { VERIFICATION_INSTRUCTIONS, VOICE_RULES, callerLocatedContext } from '../prompts.ts';
 import type { CallState } from '../state.ts';
 import { createEndCall, escalateToHuman, recordCallOutcome, traced } from '../tools/shared.ts';
@@ -24,6 +24,11 @@ const lookupAccount = llm.tool({
     const state = ctx.userData;
     if (!accountNumber && !phoneNumber) {
       return 'Provide an account number or phone number to look up.';
+    }
+    // Guard against non-identifiers (a name, SSN digits): reject without
+    // burning one of the two not-found strikes on model confusion.
+    if (accountNumber && !/\d{4}/.test(normalizeAccountNumber(accountNumber))) {
+      return 'That is not an account number. lookupAccount only takes an account number (like ATL-1001) or a phone number - never a name or SSN digits. Ask the caller for one of those.';
     }
     let account = accountNumber ? state.repo.findAccountByNumber(accountNumber) : undefined;
     if (!account && phoneNumber) {
@@ -78,10 +83,11 @@ const verifyIdentity = llm.tool({
     if (success) {
       state.verified = true;
       state.trace.event('state_transition', { from: 'unverified', to: 'verified' });
+      // No `returns` value: a handoff return would make THIS agent generate a
+      // reply too (the SDK replies to any tool output), doubling up with the
+      // negotiation agent's onEnter greeting. onEnter is the single speaker.
       return llm.handoff({
         agent: createNegotiationAgent({ chatCtx: ctx.session.chatCtx, account }),
-        returns:
-          'Identity verified. Thank the caller briefly, then explain the balance and account status from the account on file in plain language, and ask if they can take care of the full balance today.',
       });
     }
 

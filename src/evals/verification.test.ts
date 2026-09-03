@@ -300,6 +300,11 @@ describe('verification agent', () => {
       })
       .wait();
     await session.run({ userInput: 'The account number is ATL-1001.' }).wait();
+    if (!state.verified) {
+      // Confirming the remembered digits ("just to confirm, 7301?") is fine;
+      // what must never happen is asking the caller to provide them again.
+      await session.run({ userInput: 'Yes, that is right.' }).wait();
+    }
 
     expect(state.account?.accountNumber).toBe('ATL-1001');
     expect(state.verified).toBe(true);

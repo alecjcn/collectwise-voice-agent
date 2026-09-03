@@ -308,11 +308,19 @@ export function createNegotiationAgent(options?: {
         ctx.session.updateAgent(createVerificationAgent());
         return;
       }
-      ctx.session.generateReply({
-        instructions: options?.account
-          ? 'Thank the caller for verifying their identity, then explain the balance and account status from the account on file in plain language, and ask if they can take care of the full balance today.'
-          : 'Thank the caller for verifying their identity, then use getAccountDetails and explain the balance and account status in plain language, and ask if they can take care of the full balance today.',
-      });
+      if (options?.account) {
+        // The account is already in the instructions; no tool round-trip needed.
+        ctx.session.generateReply({
+          instructions:
+            'Thank the caller for verifying their identity, then explain the balance and account status from the account on file in plain language, and ask if they can take care of the full balance today.',
+          toolChoice: 'none',
+        });
+      } else {
+        ctx.session.generateReply({
+          instructions:
+            'Thank the caller for verifying their identity, then use getAccountDetails and explain the balance and account status in plain language, and ask if they can take care of the full balance today.',
+        });
+      }
     },
   });
 }
