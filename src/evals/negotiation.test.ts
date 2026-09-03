@@ -138,6 +138,29 @@ describe('negotiation agent', () => {
     expect(state.repo.listPaymentPlans(state.account!.id)).toHaveLength(0);
   });
 
+  it(
+    'discloses the floor after two lowball offers, never sooner',
+    { timeout: 120000 },
+    async () => {
+      await startVerified();
+      await session.run({ userInput: 'What do I owe?' }).wait();
+      await session.run({ userInput: 'I can offer one thousand dollars to settle.' }).wait();
+      const result = await session
+        .run({ userInput: 'Okay, one thousand five hundred. Final offer.' })
+        .wait();
+
+      // Two below-floor offers recorded -> the tool permits naming the minimum.
+      expect(state.settlementRejections).toBeGreaterThanOrEqual(2);
+      await judgeTurn(judgeLlm, result, {
+        intent: dedent`
+        Declines the offer and tells the caller the minimum acceptable settlement:
+        one thousand nine hundred ninety one dollars and eighty cents ($1,991.80).
+        Must not accept any amount below that.
+      `,
+      });
+    },
+  );
+
   it('reads a fragmented spoken amount as a single offer', { timeout: 90000 }, async () => {
     await startVerified();
     await session.run({ userInput: 'What do I owe?' }).wait();

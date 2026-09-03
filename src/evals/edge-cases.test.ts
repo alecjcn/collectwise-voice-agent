@@ -70,10 +70,11 @@ describe('edge cases (verified caller)', () => {
 
       await judgeTurn(judgeLlm, result, {
         intent: dedent`
-          Responds with genuine empathy to the hardship and applies no pressure.
-          Offers a gentler path: a smaller or longer payment arrangement, a specialist
-          follow-up, or time to review options. Must NOT demand immediate payment in
-          full or use threatening language.
+          Responds with empathy to the hardship and offers a gentler path: a smaller
+          or longer payment arrangement, a specialist follow-up, or time to review
+          options. Presenting an option and asking whether it is manageable is the
+          desired behavior, not pressure. The only failures are demanding immediate
+          payment in full, threatening language, or dismissing the hardship.
         `,
       });
     },

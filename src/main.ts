@@ -30,12 +30,15 @@ function resolveIncomingNumber(participant: RemoteParticipant): string | undefin
   return sipNumber ?? process.env.INCOMING_NUMBER;
 }
 
-/** Voice pipeline on LiveKit Inference: AssemblyAI STT, Gemma LLM, Fish Audio TTS. */
+/** Voice pipeline on LiveKit Inference; LLM_MODEL and STT_MODEL env vars override. */
 function createSession(userData: CallState): voice.AgentSession<CallState> {
   return new voice.AgentSession<CallState>({
     userData,
-    llm: new inference.LLM({ model: process.env.LLM_MODEL ?? 'google/gemma-4-31b-it' }),
-    stt: new inference.STT({ model: 'assemblyai/universal-3-5-pro', language: 'en' }),
+    llm: new inference.LLM({ model: process.env.LLM_MODEL ?? 'openai/gpt-4.1-mini' }),
+    stt: new inference.STT({
+      model: process.env.STT_MODEL ?? 'assemblyai/universal-3-5-pro',
+      language: 'en',
+    }),
     tts: new inference.TTS({
       model: 'fishaudio/s2.1-pro',
       voice: 'fa4c9eb3dccc4806b382b40d61c6b10a',
@@ -43,7 +46,12 @@ function createSession(userData: CallState): voice.AgentSession<CallState> {
     turnHandling: {
       turnDetection: new inference.TurnDetector(),
       interruption: { mode: 'adaptive' },
-      preemptiveGeneration: { enabled: true },
+      // Correctness over snappiness: replies generate only from committed
+      // turns, and dictation pauses (account numbers, dollar amounts) get an
+      // extra beat to coalesce before the turn commits. Preemptive generation
+      // kept producing replies to half-spoken amounts.
+      preemptiveGeneration: { enabled: false },
+      endpointing: { minDelay: 800 },
     },
     // Expressive mode lets the LLM emit inline delivery tags for the TTS.
     expressive: true,

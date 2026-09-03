@@ -151,8 +151,10 @@ separate services — the DB is embedded, LiveKit Cloud provides transport/model
   when the `verified` flag isn't set, and `verifyIdentity` enforces the 3-attempt cap and is
   the _only_ code path that sets `verified`. A manipulated or confused LLM gets a policy
   error to relay, never an override.
-- **The floor is never disclosed:** tool rejections instruct the model to decline and invite
-  a higher offer without stating the minimum; an eval asserts it.
+- **Progressive floor disclosure:** a first below-floor offer is declined without stating the
+  minimum (an eval asserts it); after a second lowball the tool permits naming the floor so
+  the negotiation converges instead of playing guess-the-number. `finalizeAgreement` still
+  rejects anything below it.
 - **Deterministic bookkeeping:** `finalizeAgreement` writes the payment plan _and_ the call
   outcome atomically; terminal verification failure auto-records its outcome; and a shutdown
   callback records `incomplete`/`escalated` if the caller hangs up early — every call ends
@@ -166,7 +168,7 @@ separate services — the DB is embedded, LiveKit Cloud provides transport/model
 | Wrong person → zero disclosure         | Prompt + lookup returns the name on file only                                                                                  |
 | Max 3 verification attempts            | `verifyIdentity` counter, auto-records `verification_failed`                                                                   |
 | Payment plans ≤ 24 months              | `policy.computeInstallmentPlan` + DB CHECK constraint                                                                          |
-| Settlement ≥ 80% of balance            | `policy.validateSettlementOffer`, floor never revealed                                                                         |
+| Settlement ≥ 80% of balance            | `policy.validateSettlementOffer`; floor concealed until two lowball offers, then disclosed (never crossed)                     |
 | Dispute stops collection               | `recordDispute` pauses account, records outcome, prompt stops asks                                                             |
 | Human escalation                       | `escalateToHuman` records reason; callback within 1 business day                                                               |
 | No payment credentials by voice        | Prompt; agreements deliver a secure payment link instead                                                                       |
@@ -190,7 +192,8 @@ fallback; greeting persona; pre-verification refusal; wrong person (no disclosur
 outcome row); 3-strikes verification failure; successful verify → handoff; a full conversational
 lookup → confirm → verify → handoff flow; account not found;
 balance explanation + pay-in-full-first; 3-month plan offer; 36-month refusal (and no plan row
-persisted); lowball settlement refusal without revealing the floor; pay-in-full finalization
+persisted); lowball settlement refusal without revealing the floor, then disclosure after a
+second lowball; pay-in-full finalization
 (plan + outcome rows); unverified-flag defense in depth; dispute (status flip + no further
 collection); hardship empathy; human escalation; angry caller; zero-balance account.
 

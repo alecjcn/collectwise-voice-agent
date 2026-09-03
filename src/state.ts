@@ -24,6 +24,8 @@ export interface CallState {
   verified: boolean;
   verificationAttempts: number;
   lookupFailures: number;
+  /** Below-floor settlement offers so far; after two, the floor may be disclosed. */
+  settlementRejections: number;
   escalated: boolean;
   outcomeRecorded: boolean;
 }
@@ -41,6 +43,7 @@ export function createCallState(input: {
     verified: false,
     verificationAttempts: 0,
     lookupFailures: 0,
+    settlementRejections: 0,
     escalated: false,
     outcomeRecorded: false,
   };

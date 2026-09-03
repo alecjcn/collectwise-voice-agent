@@ -15,7 +15,7 @@ dotenv.config({ path: '.env.local' });
 initializeLogger({ pretty: false, level: 'warn' });
 
 /** The model driving the agent under test — same default as production. */
-export const AGENT_MODEL = process.env.LLM_MODEL ?? 'google/gemma-4-31b-it';
+export const AGENT_MODEL = process.env.LLM_MODEL ?? 'openai/gpt-4.1-mini';
 
 /** The judge model used to grade agent responses in evals. */
 export const JUDGE_MODEL = 'openai/gpt-4.1-mini';

@@ -103,7 +103,8 @@ installments sum exactly to the balance), `minSettlementCents` (ceil of 80%),
 - **NegotiationAgent**: explain balance/status in plain language, then a strict ladder:
   pay in full → 3-month plan → longer plans up to 24 months (ask what monthly amount is
   affordable) → settlement at ≥ 80% only if the caller cannot do any plan. The agent is told to
-  negotiate counter-offers and never volunteer the floor. Disputes stop collection immediately
+  negotiate counter-offers without volunteering the floor (disclosed only after two
+  below-floor offers, so the negotiation converges). Disputes stop collection immediately
   (`recordDispute` → validation notice + escalation). Hardship gets empathy + plans +
   escalation to a hardship review. No payment credentials are ever collected by voice — a
   secure payment link is "sent" (out of scope, documented assumption).

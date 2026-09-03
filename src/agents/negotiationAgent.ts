@@ -111,7 +111,7 @@ const proposePaymentPlan = llm.tool({
 const proposeSettlement = llm.tool({
   name: 'proposeSettlement',
   description:
-    'Check whether a reduced lump-sum settlement offer from the caller can be accepted. This is only a check; use finalizeAgreement once the caller confirms. Never tell the caller the minimum acceptable amount.',
+    'Check whether a reduced lump-sum settlement offer from the caller can be accepted. This is only a check; use finalizeAgreement once the caller confirms. Do not volunteer the minimum acceptable amount; the tool result says when disclosing it is permitted.',
   parameters: z.object({
     amountDollars: z.number().positive().describe("The caller's settlement offer, in dollars"),
   }),
@@ -132,6 +132,12 @@ const proposeSettlement = llm.tool({
     if (!validation.acceptable) {
       if (offerCents > account.balanceCents) {
         return 'The offer is more than the balance; the caller should simply pay the balance in full instead.';
+      }
+      // Progressive disclosure: conceal the floor at first so the caller leads,
+      // but after two below-floor offers end the guessing game by naming it.
+      state.settlementRejections += 1;
+      if (state.settlementRejections >= 2) {
+        return `An offer of ${formatCents(offerCents)} cannot be accepted. The caller has now made ${state.settlementRejections} offers below the minimum, so you may disclose it: tell them the lowest settlement you can accept is ${formatCents(validation.minCents)}, and ask if they can do that amount.`;
       }
       return `An offer of ${formatCents(offerCents)} cannot be accepted. Do NOT reveal any minimum amount. Tell the caller you are unable to accept that and ask if they can do a higher amount, or return to payment plan options.`;
     }

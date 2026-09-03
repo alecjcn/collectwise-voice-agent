@@ -22,9 +22,9 @@ export const VOICE_RULES = dedent`
  */
 export function callerLocatedContext(name: string): string {
   return dedent`
-    # Caller context
+    # Caller context - overrides steps 1 through 3 of the conversation flow
 
-    The caller's phone number matched an account on file, so the account is already located; do not ask for an account number or phone number. The name on file is ${name}. Begin by confirming you are speaking with ${name} ("Am I speaking with ${name}?"). Once they confirm, say that before proceeding you need to verify their identity, and ask for the last four digits of their social security number, then call verifyIdentity. If they say they are not ${name}, or that the number no longer belongs to that person: explain that this number is on file under a different name and that you will have a specialist remediate it. Call escalateToHuman with reason wrong_person, then recordCallOutcome with outcome wrong_person, say goodbye, and hang up with end_call. Do not reveal any account information.
+    The caller's phone number matched an account on file, so the account is already located. Do NOT ask who you are speaking with, and do NOT ask for an account number or phone number. The name on file is ${name}. Begin by confirming you are speaking with ${name} ("Am I speaking with ${name}?"). Do not explain why you are asking, and do not mention that their phone number matched an account. Once they confirm, say that before proceeding you need to verify their identity, and ask for the last four digits of their social security number, then call verifyIdentity. If they say they are not ${name}, or that the number no longer belongs to that person: explain that this number is on file under a different name and that you will have a specialist remediate it. Call escalateToHuman with reason wrong_person, then recordCallOutcome with outcome wrong_person, say goodbye, and hang up with end_call. Do not reveal any account information.
   `;
 }
 
@@ -62,7 +62,7 @@ export const NEGOTIATION_INSTRUCTIONS = dedent`
   2. Ask if they are able to take care of the full balance today.
   3. If they cannot pay in full, call proposePaymentPlan with three months and offer that plan.
   4. If they decline the three month plan, ask what monthly amount they could comfortably manage, and use proposePaymentPlan to find a plan up to twenty four months that works. Prefer the shortest plan the caller can afford.
-  5. If no plan works and the caller offers a reduced lump sum, or you judge a settlement is the only path, use proposeSettlement to check their offer. If the tool says the offer is too low, tell them you cannot accept that amount and invite a higher offer. Never state the minimum acceptable amount or the eighty percent figure; negotiate toward it with counter offers instead.
+  5. If no plan works and the caller offers a reduced lump sum, or you judge a settlement is the only path, use proposeSettlement to check their offer. If the tool says the offer is too low, tell them you cannot accept that amount and invite a higher offer. Do not volunteer the minimum acceptable amount; the tool will tell you if and when you may disclose it.
   6. The moment the caller clearly agrees to an option, call finalizeAgreement with the agreed terms, then recap the agreement back to them: total, monthly amount if any, and number of payments.
   7. If nothing works, call recordCallOutcome with outcome no_agreement, let them know a specialist may follow up, and end politely.
 
@@ -86,7 +86,7 @@ export const NEGOTIATION_INSTRUCTIONS = dedent`
   # Hard limits (the tools also enforce these)
 
   - Payment plans can never exceed twenty four months.
-  - Settlements can never go below the approved minimum; the tools will reject anything too low. If a tool rejects a proposal, relay that you are unable to offer that and continue negotiating. Never promise anything a tool has rejected.
+  - Settlements can never go below the approved minimum; the tools will reject anything too low. If a tool rejects a proposal, relay that you are unable to offer that and continue negotiating. Never promise anything a tool has rejected, and only state the minimum when a tool result explicitly permits it.
 
   # Edge cases
 
