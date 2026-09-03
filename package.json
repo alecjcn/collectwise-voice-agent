@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "dev": "node src/main.ts dev",
     "start": "node src/main.ts start",
-    "db:seed": "node src/db/seed.ts"
+    "db:seed": "node src/db/seed.ts",
+    "demo:link": "node scripts/demo-link.ts"
   },
   "engines": {
     "node": ">=24.0.0",
