@@ -48,7 +48,8 @@ export function createCallState(input: {
 
 /**
  * Caller-ID lookup at call start: match the incoming phone number against the
- * accounts on file and, on a match, attach the account to the call state.
+ * accounts on file and, on a match, attach the account to the call state
+ * (pre-verification prompts surface only the name, for right-party confirmation).
  *
  * Lives here rather than in the repository because it is session policy, not
  * data access: what a caller-ID match may attach to the call, and what gets

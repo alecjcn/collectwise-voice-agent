@@ -78,11 +78,6 @@ export function maskPhone(phone: string): string {
   return phone.replace(/\d/g, (digit) => (++seen <= total - 4 ? '*' : digit));
 }
 
-/** First name from a stored full name, for right-party confirmation. */
-export function firstNameOf(fullName: string): string {
-  return fullName.trim().split(/\s+/)[0] ?? fullName;
-}
-
 export function formatCents(cents: number): string {
   return (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }

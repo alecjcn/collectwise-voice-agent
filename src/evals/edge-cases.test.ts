@@ -20,9 +20,12 @@ describe('edge cases (verified caller)', () => {
   });
 
   afterEach(async () => {
-    await session?.close();
-    await judgeLlm?.aclose();
-    await agentLlm?.aclose();
+    // close() can throw if the model already ended the call (session.shutdown
+    // + close race in the SDK); cleanup of the LLM connections must still run
+    // or leaked connections poison every later test in the worker.
+    await session?.close().catch(() => {});
+    await judgeLlm?.aclose().catch(() => {});
+    await agentLlm?.aclose().catch(() => {});
   });
 
   async function startVerified() {

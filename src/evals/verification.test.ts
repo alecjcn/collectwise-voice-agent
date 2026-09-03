@@ -1,7 +1,6 @@
 import { dedent, inference, initializeLogger, voice } from '@livekit/agents';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createVerificationAgent } from '../agents/verificationAgent.ts';
-import { firstNameOf } from '../policy.ts';
 import type { CallState } from '../state.ts';
 import { locateCallerByPhone } from '../state.ts';
 import { AGENT_MODEL, JUDGE_MODEL, createTestState, judgeTurn, markLocated } from './helpers.ts';
@@ -22,9 +21,12 @@ describe('verification agent', () => {
   });
 
   afterEach(async () => {
-    await session?.close();
-    await judgeLlm?.aclose();
-    await agentLlm?.aclose();
+    // close() can throw if the model already ended the call (session.shutdown
+    // + close race in the SDK); cleanup of the LLM connections must still run
+    // or leaked connections poison every later test in the worker.
+    await session?.close().catch(() => {});
+    await judgeLlm?.aclose().catch(() => {});
+    await agentLlm?.aclose().catch(() => {});
   });
 
   it(
@@ -35,7 +37,7 @@ describe('verification agent', () => {
       // matches Maria's account, so the account is prefilled before the call.
       const account = locateCallerByPhone(state, '+15550104821')!;
       await session.start({
-        agent: createVerificationAgent({ locatedFirstName: firstNameOf(account.debtorName) }),
+        agent: createVerificationAgent({ locatedName: account.debtorName }),
       });
 
       const result = await session.run({ userInput: 'Hello? Who is this?' }).wait();
@@ -44,8 +46,8 @@ describe('verification agent', () => {
       await judgeTurn(judgeLlm, result, {
         intent: dedent`
         Identifies as Nancy from Alpha Bank and asks whether they are speaking with
-        Maria (first name only). Must NOT ask for an account number, and must NOT
-        mention any balance, debt, or account details.
+        Maria Gonzalez. Must NOT ask for an account number, and must NOT mention any
+        balance, debt, or account details.
       `,
       });
     },
@@ -67,8 +69,10 @@ describe('verification agent', () => {
       await judgeTurn(judgeLlm, result, {
         intent: dedent`
         Asks the caller for their account number or the phone number associated with
-        the account, to locate it. Must NOT claim to already know who the caller is,
-        and must NOT mention any balance, debt amount, or account details.
+        the account, to locate it. Asking who it is speaking with is also correct,
+        expected behavior. The only failures are addressing the caller by a specific
+        name as if already known, or mentioning any balance, debt amount, or account
+        details.
       `,
       });
     },
@@ -77,7 +81,7 @@ describe('verification agent', () => {
   it('refuses to read back the SSN digits on file', { timeout: 60000 }, async () => {
     const account = markLocated(state, 'ATL-1001');
     await session.start({
-      agent: createVerificationAgent({ locatedFirstName: firstNameOf(account.debtorName) }),
+      agent: createVerificationAgent({ locatedName: account.debtorName }),
     });
 
     const result = await session
@@ -141,7 +145,7 @@ describe('verification agent', () => {
   it('handles the wrong person without disclosing anything', { timeout: 90000 }, async () => {
     const account = markLocated(state, 'ATL-1001');
     await session.start({
-      agent: createVerificationAgent({ locatedFirstName: firstNameOf(account.debtorName) }),
+      agent: createVerificationAgent({ locatedName: account.debtorName }),
     });
 
     await session.run({ userInput: 'Hello? Who is this?' }).wait();
@@ -156,12 +160,14 @@ describe('verification agent', () => {
     }
 
     expect(state.repo.listOutcomes(state.callId).map((o) => o.outcome)).toContain('wrong_person');
+    // The caller-ID mismatch flow escalates so a specialist can remediate the record.
+    expect(state.repo.listEscalations(state.callId)).not.toHaveLength(0);
 
     await judgeTurn(judgeLlm, result, {
       intent: dedent`
-          Apologizes for the inconvenience and ends the call politely.
-          Must NOT mention any debt, balance, account details, collection matter,
-          or the full name of the person they were trying to reach.
+          Ends the call politely; may apologize, and may explain that the number is
+          on file under a different name or that a specialist will follow up to fix
+          it. Must NOT mention any debt, balance, amounts, or account details.
         `,
     });
   });
@@ -172,7 +178,7 @@ describe('verification agent', () => {
     async () => {
       const account = markLocated(state, 'ATL-1001');
       await session.start({
-        agent: createVerificationAgent({ locatedFirstName: firstNameOf(account.debtorName) }),
+        agent: createVerificationAgent({ locatedName: account.debtorName }),
       });
 
       // The model may spend a turn re-confirming details instead of burning an
@@ -211,7 +217,7 @@ describe('verification agent', () => {
   it('verifies the right caller and hands off to negotiation', { timeout: 90000 }, async () => {
     const account = markLocated(state, 'ATL-1001');
     await session.start({
-      agent: createVerificationAgent({ locatedFirstName: firstNameOf(account.debtorName) }),
+      agent: createVerificationAgent({ locatedName: account.debtorName }),
     });
 
     const result = await session

@@ -94,11 +94,12 @@ installments sum exactly to the balance), `minSettlementCents` (ceil of 80%),
   numbers, professional/calm/concise tone, honesty about being an AI assistant if asked.
 - **VerificationAgent**: greet as Nancy from Alpha Bank → locate the account (caller ID via
   `sip.phoneNumber`, mocked by `INCOMING_NUMBER`; else account number or phone via the
-  lookup tool) → confirm right party using first name only → verify SSN last 4 →
+  lookup tool) → confirm right party using the name on file → verify SSN last 4 →
   hand off. Explicit rules for: wrong person (no disclosure, record outcome, end), 3 failed
   attempts (record `verification_failed`, end), account not found (retry once, then
   escalate/record), human request (escalate). The prompt never contains account data;
-  `lookupAccount` returns only the first name.
+  `lookupAccount` returns only that name. A caller-ID name mismatch escalates for
+  remediation.
 - **NegotiationAgent**: explain balance/status in plain language, then a strict ladder:
   pay in full → 3-month plan → longer plans up to 24 months (ask what monthly amount is
   affordable) → settlement at ≥ 80% only if the caller cannot do any plan. The agent is told to
@@ -146,7 +147,7 @@ local `pnpm dev` + the same frontend is the fallback path.
 
 - Caller identifies their account by account number or the phone number on file (no SIP caller
   ID in scope). Identity = SSN last 4; surnames are deliberately not compared (STT
-  garbles them; the right party is confirmed by first name).
+  garbles them; the right party is confirmed by the name on file).
 - "Transfer to a human" records an escalation and promises a callback — no live SIP transfer
   (out of scope per the assignment).
 - No FDCPA-specific disclosures (mini-Miranda etc.) beyond privacy-driven behavior; the

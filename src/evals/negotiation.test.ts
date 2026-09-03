@@ -22,9 +22,12 @@ describe('negotiation agent', () => {
   });
 
   afterEach(async () => {
-    await session?.close();
-    await judgeLlm?.aclose();
-    await agentLlm?.aclose();
+    // close() can throw if the model already ended the call (session.shutdown
+    // + close race in the SDK); cleanup of the LLM connections must still run
+    // or leaked connections poison every later test in the worker.
+    await session?.close().catch(() => {});
+    await judgeLlm?.aclose().catch(() => {});
+    await agentLlm?.aclose().catch(() => {});
   });
 
   async function startVerified() {
@@ -161,7 +164,7 @@ describe('negotiation agent', () => {
     { timeout: 60000 },
     async () => {
       // Simulate a mis-wired session: negotiation agent active but caller never verified.
-      state.account = state.repo.findAccountByNumber('ATL-1001');
+      state.account = state.repo.findAccountByNumber('ATL-1001')!;
       state.verified = false;
       await session.start({ agent: createNegotiationAgent() });
 

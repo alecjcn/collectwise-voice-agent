@@ -1,6 +1,6 @@
 import { llm, voice } from '@livekit/agents';
 import { z } from 'zod';
-import { MAX_VERIFICATION_ATTEMPTS, firstNameOf } from '../policy.ts';
+import { MAX_VERIFICATION_ATTEMPTS } from '../policy.ts';
 import { VERIFICATION_INSTRUCTIONS, VOICE_RULES, callerLocatedContext } from '../prompts.ts';
 import type { CallState } from '../state.ts';
 import { createEndCall, escalateToHuman, recordCallOutcome, traced } from '../tools/shared.ts';
@@ -9,7 +9,7 @@ import { createNegotiationAgent } from './negotiationAgent.ts';
 const lookupAccount = llm.tool({
   name: 'lookupAccount',
   description:
-    'Locate a consumer account by account number or by the phone number on file. Returns only the first name on file so you can confirm you are speaking with the right person. Never returns balances or other details.',
+    'Locate a consumer account by account number or by the phone number on file. Returns only the name on file so you can confirm you are speaking with the right person. Never returns balances or other details.',
   parameters: z.object({
     accountNumber: z
       .string()
@@ -37,8 +37,7 @@ const lookupAccount = llm.tool({
       return 'No matching account was found. Ask the caller to double-check the number and try once more.';
     }
     state.account = account;
-    const firstName = firstNameOf(account.debtorName);
-    return `Account located. The first name on file is ${firstName}. Confirm you are speaking with ${firstName}, then verify their identity before discussing anything about the account.`;
+    return `Account located. The name on file is ${account.debtorName}. Confirm you are speaking with ${account.debtorName} unless they already introduced themselves by that name, then verify their identity before discussing anything about the account.`;
   }),
 });
 
@@ -69,7 +68,7 @@ const verifyIdentity = llm.tool({
     // The comparison happens here, in code: the stored digits never reach the
     // model, so it can only ever relay match / no match. Names are deliberately
     // not compared - STT garbles surnames, and the right party was already
-    // confirmed by first name.
+    // confirmed by name.
     const success = last4Ssn === account.last4Ssn;
     state.repo.recordVerificationAttempt({ callId: state.callId, accountId: account.id, success });
     state.trace.event('verification', { attempt: state.verificationAttempts, success });
@@ -106,16 +105,14 @@ const verifyIdentity = llm.tool({
  * caller's identity. Its tools cannot return account details, so nothing in
  * this phase can disclose them.
  *
- * @param options.locatedFirstName - Set when caller-ID lookup already matched
- * an account; skips the account-number ask and opens with right-party
- * confirmation.
+ * @param options.locatedName - The name on file, set when caller-ID lookup
+ * already matched an account; skips the account-number ask and opens with
+ * right-party confirmation.
  */
 export function createVerificationAgent(options?: {
-  locatedFirstName?: string;
+  locatedName?: string;
 }): voice.Agent<CallState> {
-  const context = options?.locatedFirstName
-    ? `\n\n${callerLocatedContext(options.locatedFirstName)}`
-    : '';
+  const context = options?.locatedName ? `\n\n${callerLocatedContext(options.locatedName)}` : '';
   return voice.Agent.create<CallState>({
     id: 'verification',
     instructions: `${VERIFICATION_INSTRUCTIONS}${context}\n\n${VOICE_RULES}`,

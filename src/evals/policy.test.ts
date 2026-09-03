@@ -4,7 +4,6 @@ import {
   MAX_VERIFICATION_ATTEMPTS,
   MIN_SETTLEMENT_RATIO,
   computeInstallmentPlan,
-  firstNameOf,
   formatCents,
   maskPhone,
   minSettlementCents,
@@ -89,13 +88,6 @@ describe('maskPhone', () => {
   it('keeps only the last four digits', () => {
     expect(maskPhone('+15550104821')).toBe('+*******4821');
     expect(maskPhone('555-010-4821')).toBe('***-***-4821');
-  });
-});
-
-describe('firstNameOf', () => {
-  it('returns the first token of a full name', () => {
-    expect(firstNameOf('Maria Gonzalez')).toBe('Maria');
-    expect(firstNameOf('  Sarah  Jane  Whitmore ')).toBe('Sarah');
   });
 });
 

@@ -35,7 +35,7 @@ hosted [Agents Playground](https://agents-playground.livekit.io).
 Sample conversation to try (seed data):
 
 > **You:** Hi, I got a letter about my account. My account number is A T L one zero zero one.
-> **Nancy:** …Am I speaking with Maria?
+> **Nancy:** …Am I speaking with Maria Gonzalez?
 > **You:** Yes. Maria Gonzalez, last four of my social are seven three zero one.
 > **Nancy:** _(verifies, explains the $2,489.75 past-due balance, asks for payment in full)_
 > **You:** I can't pay all that… _(negotiate: 3-month plan → longer plans → settlement ≥ 80%)_
@@ -114,14 +114,16 @@ src/
 **Caller identification first.** At call start the agent reads the caller's phone number —
 on a real inbound call this is the `sip.phoneNumber` participant attribute; for browser and
 local testing the `INCOMING_NUMBER` env var mocks it. A match against the accounts table
-prefills only the account id and first name into session state, so Nancy skips the account
-questions and opens with right-party confirmation ("Am I speaking with Maria?"). Unknown or
+prefills the account into session state, so Nancy skips the account questions and opens
+with right-party confirmation ("Am I speaking with Maria Gonzalez?"); if the person at the
+number says they are someone else, she explains the number is on file under a different
+name, escalates for remediation, and ends the call. Unknown or
 absent numbers fall back to the `lookupAccount` tool (account number or phone on file).
 Caller ID only _locates_ — it never verifies; the balance stays locked until the SSN check.
 
 **Two agents, one handoff at the trust boundary.** The call starts in the
 `VerificationAgent`, whose tools _cannot return account details at all_ —
-`lookupAccount` returns only a first name so Nancy can confirm the right party. A successful
+`lookupAccount` returns only the name on file so Nancy can confirm the right party. A successful
 `verifyIdentity` (SSN last 4, max 3 attempts, every attempt audited in the DB)
 flips the `verified` flag and hands off to the `NegotiationAgent` via `llm.handoff()`,
 carrying the chat context. This is the "different permissions" agent-split pattern from the
@@ -161,7 +163,7 @@ separate services — the DB is embedded, LiveKit Cloud provides transport/model
 | Rule                                   | Enforcement                                                                                                                    |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | No account details before verification | Tool split across agents; any gated tool touched by an unverified session hands control back to the verification agent in code |
-| Wrong person → zero disclosure         | Prompt + lookup returns first name only                                                                                        |
+| Wrong person → zero disclosure         | Prompt + lookup returns the name on file only                                                                                  |
 | Max 3 verification attempts            | `verifyIdentity` counter, auto-records `verification_failed`                                                                   |
 | Payment plans ≤ 24 months              | `policy.computeInstallmentPlan` + DB CHECK constraint                                                                          |
 | Settlement ≥ 80% of balance            | `policy.validateSettlementOffer`, floor never revealed                                                                         |
@@ -183,7 +185,7 @@ with a fresh in-memory seeded DB per test, and assert on **all three layers**: w
 _says_ (judge), which tools it _calls_ (`containsFunctionCall`), and what actually hit the
 _database_ (outcome/plan/escalation rows).
 
-**Coverage:** caller-ID match (right-party confirmation by first name) and unknown-number
+**Coverage:** caller-ID match (right-party confirmation by name) and unknown-number
 fallback; greeting persona; pre-verification refusal; wrong person (no disclosure +
 outcome row); 3-strikes verification failure; successful verify → handoff; a full conversational
 lookup → confirm → verify → handoff flow; account not found;
@@ -270,8 +272,9 @@ Postgres behind the same `Repository` interface (it's the only file that knows t
 
 - Caller ID (`sip.phoneNumber`, mocked by `INCOMING_NUMBER` off-telephony) locates the
   account; callers whose number isn't on file identify by account number or phone number.
-  Identity = SSN last 4 (the right party is first confirmed by first name; surnames are
-  deliberately not compared — STT mangles them and each mangle would burn an attempt).
+  Identity = SSN last 4 (the right party is first confirmed by the name on file; spoken
+  surnames are deliberately not compared — STT mangles them and each mangle would burn an
+  attempt).
 - "Transfer to a human" records an escalation with a promised callback, then the agent
   says goodbye and hangs up (prebuilt `end_call` tool: goodbye plays out, session shuts
   down, room is deleted). No live SIP transfer — telephony is out of scope; a `TODO(POC)`

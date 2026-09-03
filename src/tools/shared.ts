@@ -52,6 +52,7 @@ export function createEndCall() {
 
 const escalationReasons = [
   'caller_requested',
+  'wrong_person',
   'hardship',
   'dispute',
   'account_not_found',

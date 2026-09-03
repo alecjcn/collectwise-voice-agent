@@ -1,12 +1,7 @@
 import { llm, voice } from '@livekit/agents';
 import { z } from 'zod';
 import type { Account } from '../db/repository.ts';
-import {
-  computeInstallmentPlan,
-  firstNameOf,
-  formatCents,
-  validateSettlementOffer,
-} from '../policy.ts';
+import { computeInstallmentPlan, formatCents, validateSettlementOffer } from '../policy.ts';
 import { NEGOTIATION_INSTRUCTIONS, VOICE_RULES } from '../prompts.ts';
 import type { CallState } from '../state.ts';
 import { createEndCall, escalateToHuman, recordCallOutcome, traced } from '../tools/shared.ts';
@@ -41,7 +36,7 @@ function handoffToVerification(state: CallState) {
   });
   return llm.handoff({
     agent: createVerificationAgent(
-      state.account ? { locatedFirstName: firstNameOf(state.account.debtorName) } : undefined,
+      state.account ? { locatedName: state.account.debtorName } : undefined,
     ),
     returns:
       'NOT ALLOWED: identity is not verified, so no account information exists to share. Respond with exactly this sentence and nothing else: "Before I can share any account information, I need to verify your identity. Could I have the last four digits of your social security number?"',

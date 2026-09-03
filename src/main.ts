@@ -7,7 +7,6 @@ import { createVerificationAgent } from './agents/verificationAgent.ts';
 import { openDb } from './db/db.ts';
 import { Repository } from './db/repository.ts';
 import { DEFAULT_DB_PATH, seedIfEmpty } from './db/seed.ts';
-import { firstNameOf } from './policy.ts';
 import type { CallState } from './state.ts';
 import { createCallState, locateCallerByPhone } from './state.ts';
 import { Tracer } from './trace.ts';
@@ -94,11 +93,10 @@ export default defineAgent({
       incomingNumber = process.env.INCOMING_NUMBER;
     }
     const account = incomingNumber ? locateCallerByPhone(userData, incomingNumber) : undefined;
-    const firstName = account ? firstNameOf(account.debtorName) : undefined;
 
     // Calls always begin in the unverified state.
     await session.start({
-      agent: createVerificationAgent(firstName ? { locatedFirstName: firstName } : undefined),
+      agent: createVerificationAgent(account ? { locatedName: account.debtorName } : undefined),
       room: ctx.room,
       inputOptions: {
         noiseCancellation: audioEnhancement({ model: 'quailVfS' }),
@@ -106,9 +104,9 @@ export default defineAgent({
     });
 
     session.generateReply({
-      instructions: firstName
-        ? `Greet the caller: introduce yourself as Nancy from Alpha Bank and politely ask whether you are speaking with ${firstName}. Do not mention any account details or why you are asking.`
-        : 'Greet the caller: introduce yourself as Nancy from Alpha Bank and ask how you can help them today. Do not mention any account details.',
+      instructions: account
+        ? `Greet the caller: introduce yourself as Nancy from Alpha Bank and politely ask whether you are speaking with ${account.debtorName}. Do not mention any account details or why you are asking.`
+        : 'Greet the caller: introduce yourself as Nancy from Alpha Bank, ask who you are speaking with, and ask how you can help them today. Do not mention any account details.',
     });
   },
 });
