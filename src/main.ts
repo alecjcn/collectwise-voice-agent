@@ -138,8 +138,8 @@ export default defineAgent({
 
     session.generateReply({
       instructions: account
-        ? `Greet the caller: introduce yourself as Nancy from Alpha Bank and politely ask whether you are speaking with ${account.debtorName}. Do not mention any account details or why you are asking.`
-        : 'Greet the caller: introduce yourself as Nancy from Alpha Bank, ask who you are speaking with, and ask how you can help them today. Do not mention any account details.',
+        ? `Greet the caller warmly in one natural line that introduces you and confirms the right party, for example: "Hello, this is Nancy from Alpha Bank - am I speaking with ${account.debtorName}?" Do not mention any account details or why you are asking.`
+        : 'Greet the caller warmly, for example: "Hello, this is Nancy from Alpha Bank. Who am I speaking with today, and how can I help you?" Do not mention any account details.',
     });
   },
 });

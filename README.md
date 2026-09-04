@@ -339,6 +339,30 @@ Event types: `call_started`, `transcript` (both roles), `tool_call` / `tool_resu
 outcomes, escalations); the trace is the debugging record. LiveKit Cloud's Agent
 Observability adds session-level audio/latency insight on top.
 
+## Latency & turn detection
+
+Perceived responsiveness is a first-class concern for a voice agent, and the two levers are
+the model pipeline and turn-taking. The current tuning (`main.ts`) deliberately favors
+correctness: preemptive generation is **off** and endpointing carries an extra beat
+(`minDelay: 800ms`) so a caller reading digits or a dollar amount isn't cut mid-number, with
+`interruption: adaptive` and the LiveKit turn detector handling barge-in. That trades a little
+speed for far fewer mis-fires on exactly the inputs this domain is full of.
+
+To take it further you would measure before tuning:
+
+- **Trace the pipeline stages.** Instrument time-to-first-token (LLM) and time-to-first-byte
+  (TTS) per turn, plus STT finalization latency, and attribute end-to-end response time
+  across STT → LLM → TTS. LiveKit Cloud's session view exposes these; shipping them to
+  Langfuse (see below) makes them searchable and comparable across builds.
+- **A/B the models.** `LLM_MODEL` / `STT_MODEL` / `TTS_MODEL` are env-swappable, so a faster
+  LLM or STT can be trialed against the eval suite and the traced latencies together — the
+  point is to move the speed/quality frontier knowingly, not to guess (this is how the
+  gpt-4.1-mini vs 5.x trade was evaluated).
+- **Tune turn-taking against real calls.** `minDelay`, the interruption mode, and the turn
+  detector are the dials; lowering `minDelay` sharpens responsiveness but risks clipping
+  spoken numbers, so it should be adjusted with the fragmented-input evals and audio
+  simulations watching, not in isolation.
+
 ## Deployment
 
 One system: a single LiveKit Cloud agent built from the included Dockerfile, no
