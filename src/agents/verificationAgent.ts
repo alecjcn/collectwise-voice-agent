@@ -93,7 +93,7 @@ const lookupAccountByPhoneNumber = llm.tool({
 const verifyIdentity = llm.tool({
   name: 'verifyIdentity',
   description:
-    "Verify the caller's identity using the last four digits of their social security number. Only call after an account has been located and the caller has confirmed they are the account holder. Three attempts are allowed in total.",
+    "Verify the caller's identity using the last four digits of their social security number. Only call after an account has been located and the caller has confirmed they are the account holder. Pass ONLY the four digits the caller actually spoke aloud this call. NEVER invent, guess, assume, or use placeholder digits such as 1234 or 0000: if the caller has not yet stated their SSN digits (for example they only confirmed their name), do not call this tool - ask them for the digits and wait. Three attempts are allowed in total, so a fabricated call wastes a real attempt.",
   parameters: z.object({
     last4Ssn: z
       .string()

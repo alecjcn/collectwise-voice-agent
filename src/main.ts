@@ -40,6 +40,9 @@ function resolveIncomingNumber(participant: RemoteParticipant): string | undefin
  * @param userData - The call's state, exposed to every tool via `ctx.userData`.
  */
 function createSession(userData: CallState): voice.AgentSession<CallState> {
+
+  // Would use a factory pattern and langfuse configs or configs set in trunk metadata to
+  // determine the tts, stt, etc in production to avoid redeployment and enable faster testing
   return new voice.AgentSession<CallState>({
     userData,
     llm: new inference.LLM({ model: process.env.LLM_MODEL ?? 'openai/gpt-4.1-mini' }),
@@ -49,7 +52,7 @@ function createSession(userData: CallState): voice.AgentSession<CallState> {
     }),
     tts: new inference.TTS({
       model: process.env.TTS_MODEL ?? 'fishaudio/s2.1-pro',
-      voice: process.env.TTS_VOICE ?? 'fa4c9eb3dccc4806b382b40d61c6b10a',
+      voice: process.env.TTS_VOICE ?? '9a9cf47702da476aa4629e2506d4a857',
     }),
     turnHandling: {
       turnDetection: new inference.TurnDetector(),
