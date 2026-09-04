@@ -339,39 +339,6 @@ Event types: `call_started`, `transcript` (both roles), `tool_call` / `tool_resu
 outcomes, escalations); the trace is the debugging record. LiveKit Cloud's Agent
 Observability adds session-level audio/latency insight on top.
 
-## Latency & turn detection
-
-Perceived responsiveness comes from two levers — the model pipeline and turn-taking — and
-LiveKit's [turn-taking tuning guide](https://docs.livekit.io/agents/logic/turns/tuning/) is
-the reference for the second. The `turnHandling` config in `main.ts` sets:
-
-- **Turn detector model** (`inference.TurnDetector()`) for end-of-turn, over raw VAD.
-- **`endpointing.minDelay: 800ms`** — above the 500ms default, an extra beat so a caller
-  reading an account number or dollar amount isn't closed out mid-number.
-- **`interruption.mode: 'adaptive'`** — the audio model that tells a real interruption from a
-  backchannel "uh-huh," rather than VAD firing on any sound.
-- **`preemptiveGeneration: disabled`** — the one deliberate deviation from the LiveKit
-  default (on). The guide's own "reads a partial transcript and replies to incomplete input"
-  symptom is exactly what we hit: with it on, the model would begin answering half-spoken
-  amounts. Off, replies generate only from committed turns. This is the classic
-  speed-for-correctness trade, and correctness wins in a domain that is mostly spoken numbers.
-- **Voice isolation** (ai-coustics) on the input so STT and the turn detector see clean audio.
-
-Tune by measuring, not by feel — [agent observability](https://docs.livekit.io/deploy/observability/insights.md)
-is there precisely because a change like preemptive generation doesn't always reduce latency:
-
-- **Trace the pipeline stages** — time-to-first-token (LLM), time-to-first-byte (TTS), and STT
-  finalization, attributed across STT → LLM → TTS per turn. LiveKit Cloud's session view
-  exposes these; shipping them to Langfuse (see below) makes them searchable across builds.
-- **A/B the models** — `LLM_MODEL` / `STT_MODEL` / `TTS_MODEL` are env-swappable, so a faster
-  model is trialed against the eval suite and the traced latencies together, moving the
-  speed/quality frontier knowingly (this is how the gpt-4.1-mini vs 5.x trade was evaluated).
-- **Tune turn-taking against the symptom table** — `endpointing.minDelay`/`maxDelay`,
-  `interruption.minDuration`/`minWords`, and re-enabling `preemptiveGeneration` (with
-  `maxSpeechDuration` capping long, mutation-prone turns) are the dials. Lowering `minDelay`
-  sharpens responsiveness but risks clipping spoken numbers, so it moves with the
-  fragmented-input evals and audio simulations watching, not in isolation.
-
 ## Deployment
 
 One system: a single LiveKit Cloud agent built from the included Dockerfile, no
@@ -412,12 +379,13 @@ Directions this prototype is deliberately shaped to grow into, roughly in priori
   (DOB/address) beyond SSN last-four, a live warm transfer for escalations (the `TODO(POC)`
   in `tools/shared.ts`), and actual secure payment-link generation instead of the recorded
   promise.
-- **Latency and turn-taking tuning.** Systematically work the levers in
-  [Latency & turn detection](#latency--turn-detection) against traced TTFT/TTFB and the eval
-  suite: A/B faster STT/LLM/TTS models, and revisit the turn-taking config per LiveKit's
-  [tuning guide](https://docs.livekit.io/agents/logic/turns/tuning/) — including whether
-  `preemptiveGeneration` can be re-enabled (bounded by `maxSpeechDuration`) once
-  fragmented-number handling is robust enough to keep it from replying to partial input.
+- **Latency and turn-taking tuning.** Trace per-stage latency (TTFT, TTFB, STT
+  finalization) and tune against it rather than by feel: A/B faster STT/LLM/TTS models via
+  the env knobs, and work the turn-taking dials — `endpointing.minDelay`, interruption
+  thresholds, and whether `preemptiveGeneration` can be re-enabled (bounded by
+  `maxSpeechDuration`) once fragmented-number handling is robust enough to keep it from
+  replying to partial input. Today's config favors correctness: `preemptiveGeneration` is
+  off and endpointing runs slightly long so a caller reading digits isn't cut off.
 
 ## Assumptions
 
