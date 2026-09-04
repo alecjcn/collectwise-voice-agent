@@ -14,7 +14,13 @@ integer cents).
 The agent is deployed to LiveKit Cloud (agent `CA_g34CJcavaJ6w`, project `collectwise`).
 Test it from your browser (microphone required) — open the link and allow the mic:
 
-**→ Public browser test URL:** generate one per conversation:
+**→ Public browser test URL:** the demo page at the URL in the submission notes hosts
+LiveKit Cloud's [Agent Embed Widget](https://docs.livekit.io/agents/start/embed.md)
+([demo/index.html](demo/index.html), served via GitHub Pages) - click the widget button,
+allow the mic, and talk to Nancy. Every visitor gets their own token, room, and session,
+so any number of evaluators can test concurrently with no shared state.
+
+Alternatively, generate a single-conversation link:
 
 ```bash
 pnpm demo:link
@@ -24,8 +30,7 @@ This prints a `meet.livekit.io` URL whose join token targets a randomly named ro
 deployed agent auto-dispatches into every newly created room. One link = one room, so use a
 fresh link per conversation: join tokens pin a single room name, everyone on the same link
 shares that room, and re-creating a just-finished room's name races the previous call's
-teardown. A ready-to-click URL is provided in the take-home submission notes rather than
-committed to git (the token grants room access).
+teardown.
 
 Project members can also use the LiveKit Cloud **Agent Console**
 (cloud.livekit.io → collectwise → Agents → `CA_g34CJcavaJ6w` → Test in Console) or the

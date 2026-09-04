@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Atlas Recovery Voice Agent — Live Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        background: #fafaf8;
+        color: #1a1a1a;
+        font:
+          16px/1.6 system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      main {
+        max-width: 680px;
+        margin: 0 auto;
+        padding: 3rem 1.25rem 6rem;
+      }
+      h1 {
+        font-size: 1.6rem;
+        margin: 0 0 0.25rem;
+      }
+      .sub {
+        color: #555;
+        margin: 0 0 2rem;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin: 2rem 0 0.5rem;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.92rem;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.4rem 0.6rem;
+        border-bottom: 1px solid #e4e2dd;
+      }
+      th {
+        color: #555;
+        font-weight: 600;
+      }
+      .hint {
+        background: #f0ede6;
+        border-radius: 8px;
+        padding: 0.9rem 1.1rem;
+        margin: 1.5rem 0;
+      }
+      code {
+        background: #ecebe7;
+        border-radius: 4px;
+        padding: 0.1rem 0.35rem;
+        font-size: 0.9em;
+      }
+      ul {
+        padding-left: 1.2rem;
+      }
+      li {
+        margin: 0.3rem 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Atlas Recovery Voice Agent</h1>
+      <p class="sub">
+        Nancy from Alpha Bank — a LiveKit voice agent for inbound consumer calls about past-due
+        accounts. CollectWise take-home submission.
+      </p>
+
+      <div class="hint">
+        <strong>Click the widget button in the bottom-right corner</strong> and allow microphone
+        access to start a call. Each visit gets its own private session.
+      </div>
+
+      <h2>Role-play with a seed account</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Account</th>
+            <th>Name</th>
+            <th>SSN last 4</th>
+            <th>Balance</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>300101</td><td>Maria Gonzalez</td><td>7301</td><td>$2,489.75</td><td>delinquent</td></tr>
+          <tr><td>300102</td><td>David Chen</td><td>5544</td><td>$960.50</td><td>delinquent</td></tr>
+          <tr><td>300103</td><td>Sarah Whitmore</td><td>9012</td><td>$12,400.00</td><td>delinquent</td></tr>
+          <tr><td>300104</td><td>James Patel</td><td>3376</td><td>$432.00</td><td>in dispute</td></tr>
+          <tr><td>300105</td><td>Linda Okafor</td><td>8845</td><td>$0.00</td><td>paid</td></tr>
+        </tbody>
+      </table>
+
+      <h2>A sample conversation</h2>
+      <p>
+        “Hi, I got a letter about my account. My account number is three zero zero one zero one.”
+        → confirm you are Maria → give SSN last four <code>7301</code> → hear the balance → say you
+        can’t pay in full and negotiate a plan or settlement.
+      </p>
+
+      <h2>Edge cases to try</h2>
+      <ul>
+        <li>Give a wrong SSN (three wrong attempts locks the call)</li>
+        <li>Say “you have the wrong number” or “this isn’t my debt”</li>
+        <li>Describe financial hardship, or demand a 36-month plan</li>
+        <li>Offer a lowball settlement (the floor is concealed, then disclosed)</li>
+        <li>Ask for a human, or interrupt Nancy mid-sentence</li>
+      </ul>
+    </main>
+    <script src="https://cloud.livekit.io/embed-popup.js" data-lk-agent="CA_g34CJcavaJ6w"></script>
+  </body>
+</html>
