@@ -341,27 +341,36 @@ Observability adds session-level audio/latency insight on top.
 
 ## Latency & turn detection
 
-Perceived responsiveness is a first-class concern for a voice agent, and the two levers are
-the model pipeline and turn-taking. The current tuning (`main.ts`) deliberately favors
-correctness: preemptive generation is **off** and endpointing carries an extra beat
-(`minDelay: 800ms`) so a caller reading digits or a dollar amount isn't cut mid-number, with
-`interruption: adaptive` and the LiveKit turn detector handling barge-in. That trades a little
-speed for far fewer mis-fires on exactly the inputs this domain is full of.
+Perceived responsiveness comes from two levers — the model pipeline and turn-taking — and
+LiveKit's [turn-taking tuning guide](https://docs.livekit.io/agents/logic/turns/tuning/) is
+the reference for the second. The `turnHandling` config in `main.ts` sets:
 
-To take it further you would measure before tuning:
+- **Turn detector model** (`inference.TurnDetector()`) for end-of-turn, over raw VAD.
+- **`endpointing.minDelay: 800ms`** — above the 500ms default, an extra beat so a caller
+  reading an account number or dollar amount isn't closed out mid-number.
+- **`interruption.mode: 'adaptive'`** — the audio model that tells a real interruption from a
+  backchannel "uh-huh," rather than VAD firing on any sound.
+- **`preemptiveGeneration: disabled`** — the one deliberate deviation from the LiveKit
+  default (on). The guide's own "reads a partial transcript and replies to incomplete input"
+  symptom is exactly what we hit: with it on, the model would begin answering half-spoken
+  amounts. Off, replies generate only from committed turns. This is the classic
+  speed-for-correctness trade, and correctness wins in a domain that is mostly spoken numbers.
+- **Voice isolation** (ai-coustics) on the input so STT and the turn detector see clean audio.
 
-- **Trace the pipeline stages.** Instrument time-to-first-token (LLM) and time-to-first-byte
-  (TTS) per turn, plus STT finalization latency, and attribute end-to-end response time
-  across STT → LLM → TTS. LiveKit Cloud's session view exposes these; shipping them to
-  Langfuse (see below) makes them searchable and comparable across builds.
-- **A/B the models.** `LLM_MODEL` / `STT_MODEL` / `TTS_MODEL` are env-swappable, so a faster
-  LLM or STT can be trialed against the eval suite and the traced latencies together — the
-  point is to move the speed/quality frontier knowingly, not to guess (this is how the
-  gpt-4.1-mini vs 5.x trade was evaluated).
-- **Tune turn-taking against real calls.** `minDelay`, the interruption mode, and the turn
-  detector are the dials; lowering `minDelay` sharpens responsiveness but risks clipping
-  spoken numbers, so it should be adjusted with the fragmented-input evals and audio
-  simulations watching, not in isolation.
+Tune by measuring, not by feel — [agent observability](https://docs.livekit.io/deploy/observability/insights.md)
+is there precisely because a change like preemptive generation doesn't always reduce latency:
+
+- **Trace the pipeline stages** — time-to-first-token (LLM), time-to-first-byte (TTS), and STT
+  finalization, attributed across STT → LLM → TTS per turn. LiveKit Cloud's session view
+  exposes these; shipping them to Langfuse (see below) makes them searchable across builds.
+- **A/B the models** — `LLM_MODEL` / `STT_MODEL` / `TTS_MODEL` are env-swappable, so a faster
+  model is trialed against the eval suite and the traced latencies together, moving the
+  speed/quality frontier knowingly (this is how the gpt-4.1-mini vs 5.x trade was evaluated).
+- **Tune turn-taking against the symptom table** — `endpointing.minDelay`/`maxDelay`,
+  `interruption.minDuration`/`minWords`, and re-enabling `preemptiveGeneration` (with
+  `maxSpeechDuration` capping long, mutation-prone turns) are the dials. Lowering `minDelay`
+  sharpens responsiveness but risks clipping spoken numbers, so it moves with the
+  fragmented-input evals and audio simulations watching, not in isolation.
 
 ## Deployment
 
@@ -403,6 +412,12 @@ Directions this prototype is deliberately shaped to grow into, roughly in priori
   (DOB/address) beyond SSN last-four, a live warm transfer for escalations (the `TODO(POC)`
   in `tools/shared.ts`), and actual secure payment-link generation instead of the recorded
   promise.
+- **Latency and turn-taking tuning.** Systematically work the levers in
+  [Latency & turn detection](#latency--turn-detection) against traced TTFT/TTFB and the eval
+  suite: A/B faster STT/LLM/TTS models, and revisit the turn-taking config per LiveKit's
+  [tuning guide](https://docs.livekit.io/agents/logic/turns/tuning/) — including whether
+  `preemptiveGeneration` can be re-enabled (bounded by `maxSpeechDuration`) once
+  fragmented-number handling is robust enough to keep it from replying to partial input.
 
 ## Assumptions
 
