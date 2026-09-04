@@ -10,7 +10,7 @@
     "format": "prettier --write \"**/*.{ts,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
     "test": "vitest --run",
-    "test:unit": "vitest --run src/evals/policy.test.ts src/evals/db.test.ts",
+    "test:unit": "vitest --run src/evals/policy.test.ts src/evals/db.test.ts src/evals/interruptions.test.ts",
     "eval": "vitest --run src/evals/verification.test.ts src/evals/negotiation.test.ts src/evals/edge-cases.test.ts",
     "test:watch": "vitest",
     "dev": "node src/main.ts dev",
@@ -18,6 +18,7 @@
     "db:seed": "node src/db/seed.ts",
     "demo:link": "node scripts/demo-link.ts"
   },
+  "packageManager": "pnpm@11.25.0",
   "engines": {
     "node": ">=24.0.0",
     "pnpm": ">=10.0.0"

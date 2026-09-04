@@ -53,16 +53,28 @@ Edge cases to try: give a wrong SSN three times, say "you have the wrong number"
 "this isn't my debt", describe hardship, demand a 36-month plan, offer a lowball settlement,
 or ask for a human.
 
-## Setup
+## Setup (reproducing from a fresh clone)
 
-Requires Node.js ≥ 24 and pnpm ≥ 10.
+Requires Node.js ≥ 24 (for the built-in `node:sqlite`) and pnpm ≥ 10 — both are pinned in
+`package.json` (`engines`, `packageManager`, and a Volta pin), so `corepack enable` or
+Volta picks the right versions automatically.
 
 ```bash
 pnpm install
 ```
 
-Copy `.env.example` to `.env.local` and fill in your LiveKit Cloud credentials
-(`LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`), or load them automatically:
+**No credentials needed** for the deterministic layer — this works immediately after
+cloning (policy math, plan/budget boundaries, lookup input checks, database, interruption
+marker):
+
+```bash
+pnpm test:unit
+```
+
+**Everything else needs a LiveKit Cloud project** (any account works; the LLM evals and
+the agent both run models through LiveKit Inference on that project). Copy `.env.example`
+to `.env.local` and fill in `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, or
+load them automatically:
 
 ```bash
 lk cloud auth
@@ -71,6 +83,15 @@ lk cloud auth
 ```bash
 lk app env -w -d .env.local
 ```
+
+Then the full flow works end to end: `pnpm test` for the whole suite (the LLM evals take
+a few minutes and bill inference usage to your project), and `pnpm dev` to run the agent
+locally — any LiveKit frontend pointed at your project connects to it (see the browser
+test path above; `pnpm demo:link` mints a fresh room URL against your project).
+
+One caveat for deploying your own copy: the committed `livekit.toml` pins **this**
+submission's Cloud agent id. To deploy to your own project, delete it and run
+`lk agent create` once (it recreates the file), then `lk agent deploy` as usual.
 
 ## Commands
 
@@ -81,7 +102,7 @@ lk app env -w -d .env.local
 | `pnpm start`     | Run the agent in production mode                                  |
 | `pnpm test`      | Run the full suite: policy/DB unit tests + LLM behavioral evals   |
 | `pnpm eval`      | LLM behavioral evals only (verification, negotiation, edge cases) |
-| `pnpm test:unit` | Deterministic tests only (no LLM calls, sub-second)               |
+| `pnpm test:unit` | Deterministic tests only (no LLM calls, no credentials, seconds)  |
 
 Seeding is idempotent and also happens automatically at agent startup, so `pnpm dev` alone is
 enough to run locally. To talk to the locally running agent, use the same frontend as the
