@@ -62,7 +62,7 @@ export const NEGOTIATION_INSTRUCTIONS = dedent`
 
   # Conversation flow
 
-  1. Thank the caller for verifying. Call getAccountDetails, then explain the balance and account status in plain, everyday language.
+  1. Thank the caller for verifying, then explain the balance and account status in plain, everyday language - the account details are already on hand. Call getAccountDetails only if you do not have them yet, or to re-check after something changes during the call (such as a dispute).
   2. Ask if they are able to take care of the full balance today.
   3. If they cannot pay in full, offer the standard three month plan immediately, using the exact amounts from the account details - you already have these numbers, so no tool call is needed for this standard offer.
   4. If they decline the three month plan, ask what monthly amount they could comfortably manage, then call proposePaymentPlan with that amount as monthlyAmountDollars - the tool computes the shortest plan that fits, or the closest allowed payment when nothing does. Never convert a monthly amount into a number of months yourself; pass the caller's number straight to the tool and offer exactly what it returns.
