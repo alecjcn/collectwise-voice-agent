@@ -16,8 +16,8 @@ ENV HOME="/app"
 # --no-install-recommends keeps the image minimal.
 RUN apt-get update -qq && apt-get install --no-install-recommends -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Pin pnpm version for reproducible builds
-RUN npm install -g pnpm@10
+# Pin pnpm's major version, matching the packageManager field in package.json
+RUN npm install -g pnpm@11
 
 # --- Build stage ---
 # Install dependencies, build the project, and prepare production assets
@@ -28,7 +28,7 @@ FROM base AS build
 WORKDIR /app
 
 # Copy just the dependency files first, for more efficient layer caching
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Install dependencies using pnpm
 # --frozen-lockfile ensures we use exact versions from pnpm-lock.yaml for reproducible builds
