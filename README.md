@@ -142,8 +142,6 @@ agent worker is connected — local or deployed).
 
 ## Architecture
 
-See [DESIGN.md](DESIGN.md) for the full design. The short version:
-
 ```
 src/
   main.ts                    entrypoint: pipeline wiring, per-call state, trace + outcome fallback
@@ -184,9 +182,30 @@ flips the `verified` flag and hands off to the `NegotiationAgent` via `llm.hando
 carrying the chat context. This is the "different permissions" agent-split pattern from the
 LiveKit workflows guide: the unverified state can't leak what it never has.
 
+_Why exactly two agents?_ The one hard permission boundary is unverified → verified, and
+that maps cleanly onto a single handoff. Dispute, hardship, and anger are conversational
+modes of the same verified phase with the same tool permissions, so they live in the
+NegotiationAgent's instructions rather than as extra agents — each additional split would
+add handoff latency and context overhead for no permissions gain. A single agent, on the
+other hand, couldn't _structurally_ guarantee the unverified caller never sees account data;
+splitting makes that a property of the tools, not the prompt.
+
 **State** lives in typed session `userData` (`CallState`): account id, verified flag,
 attempt counters, escalation/outcome flags — plus the injected repository and tracer, which
 is what lets every test run against an isolated in-memory database.
+
+**Data model.** Five tables (`accounts`, `verification_attempts`, `payment_plans`,
+`call_outcomes`, `escalations`), money as integer cents, CHECK constraints as the last line
+of defense behind `policy.ts`. Two deliberate distinctions:
+
+- **`verification_attempts` is audit, not mechanism.** The 3-attempt cap is enforced in call
+  state; this table is the durable record of every identity check, pass or fail — repeated
+  failures against an account are exactly what you'd want to reconstruct later, and a fraud
+  signal worth keeping.
+- **Outcomes vs. escalations differ in cardinality.** `call_outcomes` is the disposition:
+  exactly one terminal row per call. `escalations` is a work queue: zero or more human
+  follow-up items, each with the reason and context a specialist needs for the callback. A
+  hardship call can end `escalated` _and_ create an escalation row — related, never duplicates.
 
 **Deployment shape: one system.** A single LiveKit Cloud agent deployment built from the
 Dockerfile; SQLite lives inside the container and is seeded at startup. No docker-compose or
