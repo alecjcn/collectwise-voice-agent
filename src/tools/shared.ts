@@ -104,6 +104,7 @@ const recordableOutcomes = [
   'escalated',
   'no_agreement',
   'no_balance_due',
+  'dispute',
 ] as const;
 
 export const recordCallOutcome = llm.tool({

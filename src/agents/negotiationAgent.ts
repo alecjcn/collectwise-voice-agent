@@ -28,6 +28,9 @@ function describeAccount(account: Account): string {
     return `Account ${account.accountNumber} for ${account.debtorName} has a zero balance and is ${statusText}. No payment is due; do not attempt to collect. Before ending this call, record the outcome no_balance_due with recordCallOutcome.`;
   }
   const base = `Account ${account.accountNumber} for ${account.debtorName}, originally with ${account.clientName}. Current balance: ${formatCents(account.balanceCents)}. Status: ${statusText}.`;
+  if (account.status === 'in_dispute') {
+    return `${base} Collection is paused while the dispute is reviewed: do not request payment or offer plans or settlements. Answer questions, offer a specialist follow-up if needed, and before ending this call record the outcome dispute with recordCallOutcome.`;
+  }
   // Precompute the standard opening offer so the first counter-proposal
   // needs no tool round-trip and the model never invents plan numbers.
   if (account.status === 'delinquent') {
@@ -55,6 +58,18 @@ function handoffToVerification(state: CallState) {
     returns:
       'NOT ALLOWED: identity is not verified, so no account information exists to share. Respond with exactly this sentence and nothing else: "Before I can share any account information, I need to verify your identity. Could I have the last four digits of your social security number?"',
   });
+}
+
+/**
+ * Collection tools must refuse while an account is under dispute review -
+ * in code, not just in the prompt, so a confused model cannot book a plan
+ * on a disputed account.
+ */
+function refuseIfDisputed(account: Account): string | undefined {
+  if (account.status === 'in_dispute') {
+    return 'This account is under dispute review and collection is paused. Do not propose or finalize any payment. Confirm the dispute is being reviewed and offer a specialist follow-up for questions.';
+  }
+  return undefined;
 }
 
 /** Returns the verified account, an unverified marker, or an error string. */
@@ -109,6 +124,8 @@ const proposePaymentPlan = llm.tool({
     if ('unverified' in result) return handoffToVerification(state);
     if ('error' in result) return result.error;
     const { account } = result;
+    const disputed = refuseIfDisputed(account);
+    if (disputed) return disputed;
     if (account.balanceCents <= 0) return 'This account has no balance due; no plan is needed.';
     if ((months === undefined) === (monthlyAmountDollars === undefined)) {
       return 'Pass exactly one of months or monthlyAmountDollars.';
@@ -165,6 +182,8 @@ const proposeSettlement = llm.tool({
     if ('unverified' in result) return handoffToVerification(state);
     if ('error' in result) return result.error;
     const { account } = result;
+    const disputed = refuseIfDisputed(account);
+    if (disputed) return disputed;
     if (account.balanceCents <= 0)
       return 'This account has no balance due; no settlement is needed.';
     const offerCents = Math.round(amountDollars * 100);
@@ -214,6 +233,8 @@ const finalizeAgreement = llm.tool({
       if ('unverified' in result) return handoffToVerification(state);
       if ('error' in result) return result.error;
       const { account } = result;
+      const disputed = refuseIfDisputed(account);
+      if (disputed) return disputed;
       if (account.balanceCents <= 0) return 'This account has no balance due; nothing to finalize.';
       if (state.outcomeRecorded) {
         return 'An outcome has already been recorded for this call. End the call politely.';

@@ -23,7 +23,7 @@ inbound call
    ▼
 VerificationAgent (unverified)                NegotiationAgent (verified)
   tools:                                        tools:
-    lookupAccount      ── no PII returned         getAccountDetails   ── gated on verified flag
+    lookupAccountBy... ── no PII returned         getAccountDetails   ── gated on verified flag
     verifyIdentity     ── on success ─────────▶   proposePaymentPlan  ── ≤ 24 months enforced
     escalateToHuman         llm.handoff()         proposeSettlement   ── ≥ 80% floor enforced
     recordCallOutcome                             finalizeAgreement   ── persists plan + outcome
@@ -59,9 +59,11 @@ means tests run against an isolated in-memory DB with zero mocking frameworks.
 
 ### Voice pipeline
 
-Unchanged from the starter (already tuned for voice): LiveKit Inference with AssemblyAI STT,
-Gemma 4 31B LLM (configurable via `LLM_MODEL`), Fish Audio TTS with expressive mode, LiveKit
-turn detector, ai-coustics noise cancellation.
+LiveKit Inference end to end: AssemblyAI STT, GPT-4.1 mini LLM (configurable via
+`LLM_MODEL`), Fish Audio TTS with expressive mode, LiveKit turn detector, ai-coustics
+noise cancellation. Preemptive generation is off and endpointing gets an extra beat so
+spoken numbers coalesce before a turn commits; an `llmNode` hook marks interrupted
+messages so the model never resumes a sentence the caller cut off.
 
 ## Data layer
 
@@ -86,7 +88,9 @@ objects; the schema's CHECK constraints are a last line of defense behind `polic
 `src/policy.ts`: `computeInstallmentPlan` (ceil per-month, last payment absorbs the remainder so
 installments sum exactly to the balance), `computePlanForBudget` (a stated monthly budget maps to
 the shortest affordable plan - or the 24-month closest fallback, flagged over-budget), `minSettlementCents` (ceil of 80%),
-`validateSettlementOffer`, `normalizeAccountNumber`, `normalizePhone`, `formatCents`. Constants: `MAX_PLAN_MONTHS = 24`,
+`validateSettlementOffer`, `checkAccountNumberInput` / `checkPhoneNumberInput` (spoken-input
+shape classification so malformed lookups are re-asked at no cost), `normalizeAccountNumber`,
+`normalizePhone`, `formatCents`. Constants: `MAX_PLAN_MONTHS = 24`,
 `MIN_SETTLEMENT_RATIO = 0.8`, `MAX_VERIFICATION_ATTEMPTS = 3`.
 
 ## Conversation design (prompting strategy)
@@ -95,11 +99,11 @@ the shortest affordable plan - or the 24-month closest fallback, flagged over-bu
   numbers, professional/calm/concise tone, honesty about being an AI assistant if asked.
 - **VerificationAgent**: greet as Nancy from Alpha Bank → locate the account (caller ID via
   `sip.phoneNumber`, mocked by `INCOMING_NUMBER`; else account number or phone via the
-  lookup tool) → confirm right party using the name on file → verify SSN last 4 →
+  lookup tools) → confirm right party using the name on file → verify SSN last 4 →
   hand off. Explicit rules for: wrong person (no disclosure, record outcome, end), 3 failed
   attempts (record `verification_failed`, end), account not found (retry once, then
   escalate/record), human request (escalate). The prompt never contains account data;
-  `lookupAccount` returns only that name. A caller-ID name mismatch escalates for
+  the lookup tools return only that name. A caller-ID name mismatch escalates for
   remediation.
 - **NegotiationAgent**: explain balance/status in plain language, then a strict ladder:
   pay in full → 3-month plan → longer plans up to 24 months (ask what monthly amount is
@@ -132,7 +136,10 @@ durable record; the trace is the debugging record.
 - `src/evals/negotiation.test.ts` — LLM evals: balance explanation, asks for full payment
   first, offers 3-month plan, respects 24-month cap and settlement floor (tool errors relayed,
   not overridden), finalizes agreements.
-- `src/evals/edge-cases.test.ts` — LLM evals: dispute, hardship, human request, angry caller.
+- `src/evals/edge-cases.test.ts` — LLM evals: dispute, disputed-account collection refusal,
+  hardship, human request, angry caller, zero-balance.
+- `src/evals/db.test.ts` / `src/evals/interruptions.test.ts` — deterministic tests for the
+  data layer and the interruption-marker transform (no LLM).
 
 LLM evals use the test framework (`session.run` + `isFunctionCall` / `judge`) with a fresh
 in-memory DB per test; the judge model is `openai/gpt-4.1-mini` via LiveKit Inference.

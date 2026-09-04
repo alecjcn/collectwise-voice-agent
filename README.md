@@ -96,11 +96,12 @@ See [DESIGN.md](DESIGN.md) for the full design. The short version:
 src/
   main.ts                    entrypoint: pipeline wiring, per-call state, trace + outcome fallback
   prompts.ts                 persona, voice rules, per-phase instructions
-  policy.ts                  pure guardrail functions (plan math, settlement floor, name match)
+  policy.ts                  pure guardrail functions (plan math, settlement floor, input checks)
   state.ts                   CallState: typed session userData (verified flag, attempts, deps)
+  interruptions.ts           llmNode hook marking cut-off messages for the model
   trace.ts                   per-call JSONL tracer
   agents/
-    verificationAgent.ts     unverified phase: lookupAccount, verifyIdentity (+ shared tools)
+    verificationAgent.ts     unverified phase: account lookup tools, verifyIdentity
     negotiationAgent.ts      verified phase: account details, plans, settlements, disputes
   tools/shared.ts            escalateToHuman, recordCallOutcome, traced() wrapper
   db/
@@ -117,12 +118,15 @@ prefills the account into session state, so Nancy skips the account questions an
 with right-party confirmation ("Am I speaking with Maria Gonzalez?"); if the person at the
 number says they are someone else, she explains the number is on file under a different
 name, escalates for remediation, and ends the call. Unknown or
-absent numbers fall back to the `lookupAccount` tool (account number or phone on file).
+absent numbers fall back to the lookup tools (`lookupAccountByAccountNumber` /
+`lookupAccountByPhoneNumber`), which validate input shape in code: a name, SSN-shaped
+digits, or a mid-utterance fragment gets an instructive re-ask that never counts against
+the caller.
 Caller ID only _locates_ — it never verifies; the balance stays locked until the SSN check.
 
 **Two agents, one handoff at the trust boundary.** The call starts in the
 `VerificationAgent`, whose tools _cannot return account details at all_ —
-`lookupAccount` returns only the name on file so Nancy can confirm the right party. A successful
+the lookup tools return only the name on file so Nancy can confirm the right party. A successful
 `verifyIdentity` (SSN last 4, max 3 attempts, every attempt audited in the DB)
 flips the `verified` flag and hands off to the `NegotiationAgent` via `llm.handoff()`,
 carrying the chat context. This is the "different permissions" agent-split pattern from the
@@ -152,6 +156,19 @@ separate services — the DB is embedded, LiveKit Cloud provides transport/model
   when the `verified` flag isn't set, and `verifyIdentity` enforces the 3-attempt cap and is
   the _only_ code path that sets `verified`. A manipulated or confused LLM gets a policy
   error to relay, never an override.
+- **Knowledge over round-trips:** the account details injected at handoff include the
+  precomputed standard 3-month plan, so the first counter-offer always carries real
+  numbers with no tool latency (`finalizeAgreement` still recomputes and enforces
+  everything - the anchor is convenience, never authority).
+- **Endings belong to one tool.** Per the EndCallTool contract, ending a call means
+  calling `end_call`: the tool generates the single goodbye from `endInstructions`,
+  plays it out fully, then closes the session and deletes the room. No prompt composes a
+  farewell, which is what eliminated double goodbyes, silent hangups, and stranded rooms.
+- **Interruptions are marked, not inferred.** The SDK commits only the spoken portion of
+  an interrupted message, but no provider formatter surfaces the `interrupted` flag - a
+  bare half-sentence invites a small model to complete it verbatim. An `llmNode` hook
+  (`interruptions.ts`) appends an explicit cut-off marker in the per-request context, so
+  the model responds to the caller instead of finishing its sentence.
 - **Progressive floor disclosure:** a first below-floor offer is declined without stating the
   minimum (an eval asserts it); after a second lowball the tool permits naming the floor so
   the negotiation converges instead of playing guess-the-number. `finalizeAgreement` still
@@ -159,7 +176,8 @@ separate services — the DB is embedded, LiveKit Cloud provides transport/model
 - **Deterministic bookkeeping:** `finalizeAgreement` writes the payment plan _and_ the call
   outcome atomically; terminal verification failure auto-records its outcome; and a shutdown
   callback records `incomplete`/`escalated` if the caller hangs up early — every call ends
-  with exactly one outcome row.
+  with exactly one outcome row (`no_balance_due` and `dispute` cover paid-off and
+  under-review accounts, so no completed call is mislabeled).
 
 ## Guardrails summary
 
@@ -170,7 +188,7 @@ separate services — the DB is embedded, LiveKit Cloud provides transport/model
 | Max 3 verification attempts            | `verifyIdentity` counter, auto-records `verification_failed`                                                                   |
 | Payment plans ≤ 24 months              | `policy.computeInstallmentPlan` + DB CHECK constraint                                                                          |
 | Settlement ≥ 80% of balance            | `policy.validateSettlementOffer`; floor concealed until two lowball offers, then disclosed (never crossed)                     |
-| Dispute stops collection               | `recordDispute` pauses account, records outcome, prompt stops asks                                                             |
+| Dispute stops collection               | `recordDispute` pauses the account; plan/settlement/finalize tools refuse `in_dispute` accounts in code                        |
 | Human escalation                       | `escalateToHuman` records reason; callback within 1 business day                                                               |
 | No payment credentials by voice        | Prompt; agreements deliver a secure payment link instead                                                                       |
 | No stranded or cut-off call endings    | Ending = calling `end_call`; the tool generates the one goodbye, plays it out fully, then closes the session and room          |
@@ -184,20 +202,29 @@ pnpm eval        # LLM behavioral evals
 ```
 
 LLM evals use the LiveKit Agents test framework (`session.run` + tool-call assertions +
-LLM-judged intents) against the real production model (Gemma 4 31B via LiveKit Inference),
+LLM-judged intents) against the real production model (GPT-4.1 mini via LiveKit
+Inference; `LLM_MODEL` overrides both),
 with a fresh in-memory seeded DB per test, and assert on **all three layers**: what the agent
 _says_ (judge), which tools it _calls_ (`containsFunctionCall`), and what actually hit the
 _database_ (outcome/plan/escalation rows).
 
 **Coverage:** caller-ID match (right-party confirmation by name) and unknown-number
-fallback; greeting persona; pre-verification refusal; wrong person (no disclosure +
-outcome row); 3-strikes verification failure; successful verify → handoff; a full conversational
-lookup → confirm → verify → handoff flow; account not found;
-balance explanation + pay-in-full-first; 3-month plan offer; 36-month refusal (and no plan row
-persisted); lowball settlement refusal without revealing the floor, then disclosure after a
-second lowball; pay-in-full finalization
-(plan + outcome rows); unverified-flag defense in depth; dispute (status flip + no further
-collection); hardship empathy; human escalation; angry caller; zero-balance account.
+fallback; greeting persona; pre-verification refusal; SSN read-back refusal; wrong person
+(no disclosure + outcome row); 3-strikes verification failure; successful verify →
+handoff; a full conversational lookup → confirm → verify → handoff flow; fragmented
+phone-number turns (no strikes burned, lookup succeeds once complete); early-volunteered
+name/account/SSN reuse without re-asking; account not found; balance explanation +
+pay-in-full-first; immediate 3-month offer with real amounts; monthly-budget → shortest
+fitting plan (dollars reach the tool, code does the division) and the over-budget
+24-month clamp; 36-month refusal (no plan row persisted); lowball settlement refusal
+without revealing the floor, then disclosure after a second lowball; fragmented spoken
+amounts read as one offer; pay-in-full finalization (plan + outcome rows); recap
+interruption recovery (fresh response, never resuming the cut-off sentence); goodbye and
+hangup in the same turn; unverified-flag defense in depth; dispute (status flip + no
+further collection); no plans bookable on an already-disputed account (tool-enforced);
+hardship empathy; human escalation; angry caller; zero-balance account (told nothing is
+due, `no_balance_due` recorded); prompt-privacy checks that stored SSN digits can never
+enter any instructions.
 
 **Known limitations / remaining failure modes:**
 
@@ -211,10 +238,12 @@ collection); hardship empathy; human escalation; angry caller; zero-balance acco
   caller ID. A real system would add DOB/address as further factors.
 - Multi-turn _audio_ behavior (interruptions, turn detection) isn't covered — text-mode evals
   only. LiveKit's simulation framework is Python-only today.
-- Small-model hallucination is the sharpest failure mode we found: before the
-  handoff-back guardrail existed, Gemma would occasionally invent a balance after a tool
-  refused it. The structural fix (control returns to the verification agent) closed it, but
-  it is a good illustration of why prompts alone are not guardrails.
+- Small-model hallucination is the sharpest failure mode we found: during development
+  (on Gemma 4 31B, before switching the default model), the model would occasionally
+  invent a balance after a tool refused it, until the handoff-back guardrail made control
+  return to the verification agent in code. It is a good illustration of why prompts
+  alone are not guardrails - the same philosophy behind the dispute gate, the budget
+  arithmetic, and the interruption marker.
 
 ## Observability
 

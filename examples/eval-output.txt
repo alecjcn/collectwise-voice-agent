@@ -3,8 +3,8 @@ $ vitest --run
  RUN  v4.1.11 /Users/alec/repos/agent-starter-node
 
 
- Test Files  6 passed (6)
-      Tests  64 passed (64)
-   Start at  17:21:25
-   Duration  171.97s (transform 78ms, setup 0ms, import 1.94s, tests 169.49s, environment 0ms)
+ Test Files  7 passed (7)
+      Tests  74 passed (74)
+   Start at  21:06:07
+   Duration  176.38s (transform 84ms, setup 0ms, import 2.02s, tests 173.81s, environment 0ms)
 

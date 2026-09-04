@@ -18,7 +18,7 @@ export interface CallState {
   readonly trace: Tracer;
   /** Caller's number: `sip.phoneNumber` on telephony calls, `INCOMING_NUMBER` mock otherwise. */
   incomingNumber?: string;
-  /** Account located for this call (caller ID or the lookupAccount tool). */
+  /** Account located for this call (caller ID or a lookup tool). */
   account?: Account;
   /** True only after a successful `verifyIdentity` call. */
   verified: boolean;

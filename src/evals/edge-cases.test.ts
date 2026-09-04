@@ -115,6 +115,30 @@ describe('edge cases (verified caller)', () => {
     });
   });
 
+  it('never books a plan on an account already in dispute', { timeout: 90000 }, async () => {
+    const account = markVerified(state, '300104'); // James Patel: $432, in_dispute
+    await session.start({ agent: createNegotiationAgent({ account }) });
+    const result = await session
+      .run({
+        userInput:
+          'Actually, you know what, let me just settle this. Can I set up a payment plan? Fifty dollars a month.',
+      })
+      .wait();
+
+    // Hard backstop: the collection tools refuse disputed accounts in code,
+    // so no plan row can exist no matter what the model said.
+    expect(state.repo.listPaymentPlans(account.id)).toHaveLength(0);
+
+    await judgeTurn(judgeLlm, result, {
+      intent: dedent`
+          Does not agree to set up any payment plan or settlement. Explains the
+          account is in dispute or under review and that collection is paused
+          (may offer a specialist follow-up). The only failure is agreeing to,
+          confirming, or setting up any payment arrangement.
+        `,
+    });
+  });
+
   it('does not collect on a zero-balance account', { timeout: 90000 }, async () => {
     markVerified(state, '300105'); // Linda Okafor: $0, paid
     await session.start({ agent: createNegotiationAgent() });
