@@ -11,30 +11,31 @@ integer cents).
 
 ## Try the deployed agent
 
-The agent is deployed to LiveKit Cloud (agent `CA_g34CJcavaJ6w`, project `collectwise`).
-Test it from your browser (microphone required) — open the link and allow the mic:
+The agent is live on LiveKit Cloud (agent `CA_g34CJcavaJ6w`, project `collectwise`). There
+are three ways to reach it — all need a microphone; allow the mic when prompted.
 
-**→ Public browser test URL:** the demo page at the URL in the submission notes hosts
-LiveKit Cloud's [Agent Embed Widget](https://docs.livekit.io/agents/start/embed.md)
-([demo/index.html](demo/index.html), served via GitHub Pages) - click the widget button,
-allow the mic, and talk to Nancy. Every visitor gets their own token, room, and session,
-so any number of evaluators can test concurrently with no shared state.
+**1. Hosted demo page (no setup):**
 
-Alternatively, generate a single-conversation link:
+**→ https://alecjcn.github.io/collectwise-voice-agent/demo/**
+
+A static page hosting LiveKit Cloud's [Agent Embed Widget](https://docs.livekit.io/agents/start/embed.md)
+([demo/index.html](demo/index.html), served via GitHub Pages). Click the widget button in
+the corner and talk to Nancy. Every visitor gets their own token, room, and session, so any
+number of evaluators can test concurrently with no shared state. The seed accounts to
+role-play with are listed right on the page.
+
+**2. A single-conversation link** (needs the repo + your LiveKit credentials, see Setup):
 
 ```bash
 pnpm demo:link
 ```
 
 This prints a `meet.livekit.io` URL whose join token targets a randomly named room; the
-deployed agent auto-dispatches into every newly created room. One link = one room, so use a
-fresh link per conversation: join tokens pin a single room name, everyone on the same link
-shares that room, and re-creating a just-finished room's name races the previous call's
-teardown.
+deployed agent auto-dispatches into every newly created room. One link = one conversation:
+join tokens pin a single room name, so use a fresh link each time.
 
-Project members can also use the LiveKit Cloud **Agent Console**
-(cloud.livekit.io → collectwise → Agents → `CA_g34CJcavaJ6w` → Test in Console) or the
-hosted [Agents Playground](https://agents-playground.livekit.io).
+**3. The LiveKit Cloud Agent Console** (project members): cloud.livekit.io → collectwise →
+Agents → `CA_g34CJcavaJ6w` → Test in Console.
 
 Sample conversation to try (seed data):
 
@@ -58,45 +59,70 @@ Edge cases to try: give a wrong SSN three times, say "you have the wrong number"
 "this isn't my debt", describe hardship, demand a 36-month plan, offer a lowball settlement,
 or ask for a human.
 
-## Setup (reproducing from a fresh clone)
+## Run your own copy
 
 Requires Node.js ≥ 24 (for the built-in `node:sqlite`) and pnpm ≥ 10 — both are pinned in
 `package.json` (`engines`, `packageManager`, and a Volta pin), so `corepack enable` or
 Volta picks the right versions automatically.
 
+**1. Clone and install:**
+
 ```bash
+git clone https://github.com/alecjcn/collectwise-voice-agent.git
+cd collectwise-voice-agent
 pnpm install
 ```
 
-**No credentials needed** for the deterministic layer — this works immediately after
-cloning (policy math, plan/budget boundaries, lookup input checks, database, interruption
-marker):
+The deterministic test layer runs immediately, with **no credentials** — a good first check
+that the clone is healthy:
 
 ```bash
 pnpm test:unit
 ```
 
-**Everything else needs a LiveKit Cloud project** (any account works; the LLM evals and
-the agent both run models through LiveKit Inference on that project). Copy `.env.example`
-to `.env.local` and fill in `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, or
-load them automatically:
+**2. Add your LiveKit credentials.** Everything past the deterministic layer runs models
+through LiveKit Inference on your own LiveKit Cloud project. Copy `.env.example` to
+`.env.local` and fill in your own `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`
+(the file also documents the optional `LLM_MODEL` / `STT_MODEL` / `TTS_MODEL` / `TTS_VOICE`
+and `INCOMING_NUMBER` knobs). If you use the LiveKit CLI, it can write the file for you:
 
 ```bash
-lk cloud auth
+lk cloud auth && lk app env -w -d .env.local
 ```
+
+**3. Seed the database** (idempotent; also runs automatically at agent startup):
 
 ```bash
-lk app env -w -d .env.local
+pnpm db:seed
 ```
 
-Then the full flow works end to end: `pnpm test` for the whole suite (the LLM evals take
-a few minutes and bill inference usage to your project), and `pnpm dev` to run the agent
-locally — any LiveKit frontend pointed at your project connects to it (see the browser
-test path above; `pnpm demo:link` mints a fresh room URL against your project).
+**4. Run the agent locally** — hot reload, auto-seeds an empty DB:
 
-One caveat for deploying your own copy: the committed `livekit.toml` pins **this**
-submission's Cloud agent id. To deploy to your own project, delete it and run
-`lk agent create` once (it recreates the file), then `lk agent deploy` as usual.
+```bash
+pnpm dev
+```
+
+Point any LiveKit frontend at your project to talk to the local worker; `pnpm demo:link`
+mints a fresh browser link against it. To try the recognized-caller path locally, set
+`INCOMING_NUMBER` in `.env.local` to a seed number (e.g. `+15550104821` for Maria) — off
+telephony this stands in for the `sip.phoneNumber` a real inbound call would carry.
+
+**5. Console mode** — a terminal REPL against the agent, no browser or frontend needed
+(handy for quick prompt iteration):
+
+```bash
+lk agent console
+```
+
+**6. Deploy to your own LiveKit Cloud project.** The committed `livekit.toml` pins **this**
+submission's agent id, so delete it first; `lk agent create` recreates it for your project.
+
+```bash
+rm livekit.toml && lk agent create   # first deploy: creates the agent + livekit.toml
+lk agent deploy                      # subsequent deploys
+lk agent status                      # health, replicas, last-observed
+lk agent logs                        # tail live logs (includes [trace] lines)
+```
 
 ## Commands
 
@@ -222,17 +248,31 @@ separate services — the DB is embedded, LiveKit Cloud provides transport/model
 ## Evals & tests
 
 ```bash
-pnpm test        # everything
-pnpm test:unit   # deterministic only (policy math, DB, guardrails) — no LLM
-pnpm eval        # LLM behavioral evals
+pnpm test        # everything (deterministic + LLM evals) — a few minutes, bills inference
+pnpm test:unit   # deterministic only (policy math, DB, guardrails) — no LLM, no creds, seconds
+pnpm eval        # LLM behavioral evals only
 ```
 
-LLM evals use the LiveKit Agents test framework (`session.run` + tool-call assertions +
-LLM-judged intents) against the real production model (GPT-4.1 mini via LiveKit
-Inference; `LLM_MODEL` overrides both),
-with a fresh in-memory seeded DB per test, and assert on **all three layers**: what the agent
-_says_ (judge), which tools it _calls_ (`containsFunctionCall`), and what actually hit the
-_database_ (outcome/plan/escalation rows).
+**What to expect.** `pnpm test:unit` (39 tests) is fast, offline, and always green — pure
+policy math, the DB layer, the lookup input checks, and the interruption-marker transform.
+`pnpm test` adds the LLM evals and needs `.env.local`; it takes a few minutes and bills
+inference usage to your project. A committed sample run is in
+[examples/eval-output.txt](examples/eval-output.txt).
+
+Following LiveKit's [testing guidance](https://docs.livekit.io/agents/build/testing.md),
+the evals cover **both layers**:
+
+- **Turn level** — the LiveKit test framework asserts on exactly what happened in a turn:
+  which tools were called (`containsFunctionCall`), the arguments they carried, and the
+  agent handoffs (`containsAgentHandoff`).
+- **Multi-turn** — driven conversations run the agent across many turns (lookup → confirm →
+  verify → handoff → negotiate → finalize) and assert on the cumulative outcome. LiveKit's
+  Cloud simulation runner is Python-only today, so these are scripted in Vitest instead.
+
+Every eval asserts on **three independent layers**: what the agent _says_ (an LLM judge
+over the whole turn, not just the last message), which tools it _calls_, and what actually
+hit the _database_. The DB assertions are the hard backstop — they don't depend on model
+phrasing, so a guardrail can never silently regress behind a lenient judge.
 
 **Coverage:** caller-ID match (right-party confirmation by name) and unknown-number
 fallback; greeting persona; pre-verification refusal; SSN read-back refusal; wrong person
@@ -301,37 +341,44 @@ Observability adds session-level audio/latency insight on top.
 
 ## Deployment
 
-Deployed as a single LiveKit Cloud agent from the included Dockerfile:
-
-```bash
-lk agent create   # first deploy: creates the agent + livekit.toml
-```
-
-```bash
-lk agent deploy   # subsequent deploys
-```
-
-```bash
-lk agent status   # check status
-```
-
-```bash
-lk agent logs     # tail live logs (includes [trace] lines)
-```
-
-**Browser test path:** the agent uses automatic dispatch (no agent name pinning), so it
-joins every room created in the project. Any LiveKit frontend pointed at the project works;
-the documented path is LiveKit Meet's custom-connect URL described at the top of this
-README (`meet.livekit.io/custom?liveKitUrl=...&token=...` with a token from
-`lk token create`). Verified end to end: joining a room dispatches the deployed agent in
-about one second and Nancy speaks first.
-
-If the deployed path is unavailable, run `pnpm dev` locally with the same `.env.local` —
-the same browser frontend connects to your local worker.
+One system: a single LiveKit Cloud agent built from the included Dockerfile, no
+docker-compose or side services — SQLite lives in the container and is seeded at startup.
+The `lk agent` commands are in [Run your own copy](#run-your-own-copy). The agent uses
+automatic dispatch (no name pinning), so it joins every room created in the project; that
+is what lets the hosted widget, `pnpm demo:link`, and the Agent Console all reach the same
+deployment. Verified end to end: joining a room dispatches the agent in about a second and
+Nancy speaks first.
 
 **Tradeoff:** the container's SQLite database is ephemeral and re-seeded on each deploy /
-restart, which is fine for evaluating a prototype. Production would swap `db/db.ts` for
-Postgres behind the same `Repository` interface (it's the only file that knows the engine).
+restart, which is fine for a prototype. Production would swap `db/db.ts` for Postgres behind
+the same `Repository` interface — it's the only file that knows the engine.
+
+## Further improvements
+
+Directions this prototype is deliberately shaped to grow into, roughly in priority order:
+
+- **Langfuse as the control plane for models and prompts.** Move the STT / TTS / LLM
+  choices and every prompt out of the code and into Langfuse-managed config, so voice,
+  model, and wording can be tuned and versioned without a redeploy, and A/B'd per cohort.
+  Its prompt-management and experiment tooling would also replace the ad-hoc `LLM_MODEL`
+  env knob and the manual model trial documented above with something measurable.
+- **Langfuse tracing in production.** The semantic trace already emitted per call
+  (`tool_call`, `verification`, `plan_decision`, `outcome`, …) maps cleanly onto Langfuse
+  spans. Shipping it there would give searchable, per-call conversation traces with latency
+  and cost attribution across the STT-LLM-TTS pipeline — the natural next step beyond
+  stdout and LiveKit Cloud's session view.
+- **Real caller identification over SIP.** On telephony the inbound `sip.phoneNumber` is
+  available before the first word; the caller-ID lookup is already wired to it (mocked by
+  `INCOMING_NUMBER` off-telephony). Wiring a real SIP trunk would let Nancy open with
+  right-party confirmation on genuine calls, not just the demo path.
+- **Per-client prompts from trunk metadata.** A collections platform serves many creditors.
+  SIP trunk / dispatch metadata can carry the client identity into the job, letting the
+  agent load client-specific persona, disclosures, and policy limits dynamically — one
+  deployment, many branded agents — rather than the single hard-coded Alpha Bank persona.
+- **Stronger identity and real payment execution.** A second verification factor
+  (DOB/address) beyond SSN last-four, a live warm transfer for escalations (the `TODO(POC)`
+  in `tools/shared.ts`), and actual secure payment-link generation instead of the recorded
+  promise.
 
 ## Assumptions
 
