@@ -291,6 +291,42 @@ describe('verification agent', () => {
     },
   );
 
+  it(
+    'survives fragmented phone-number turns without burning lookup strikes',
+    { timeout: 120000 },
+    async () => {
+      await session.start({ agent: createVerificationAgent() });
+
+      // Real production transcript: endpointing committed the turn before the
+      // number ("My phone" as a phone number), then a mid-number fragment.
+      // Neither may count toward the two account-not-found strikes.
+      await session.run({ userInput: 'Yeah. This is James My phone' }).wait();
+      await session.run({ userInput: 'Zero one zero. Sixty six' }).wait();
+
+      expect(state.lookupFailures).toBe(0);
+      expect(state.repo.listEscalations(state.callId)).toHaveLength(0);
+      expect(state.account).toBeUndefined();
+
+      // The complete number must still locate the account. The model may
+      // confirm the number back before looking it up; answer like a caller.
+      let result = await session
+        .run({ userInput: 'Sorry. It is five five five, zero one zero, six six five five.' })
+        .wait();
+      if (!state.account) {
+        result = await session.run({ userInput: 'Yes. That is correct.' }).wait();
+      }
+      expect(state.account?.debtorName).toBe('James Patel');
+
+      await judgeTurn(judgeLlm, result, {
+        intent: dedent`
+          Proceeds with the located caller: addresses or confirms James, and/or asks
+          for the last four digits of their social security number. Must NOT say the
+          account could not be found and must NOT end the call.
+        `,
+      });
+    },
+  );
+
   it('remembers an early-volunteered SSN instead of asking again', { timeout: 90000 }, async () => {
     await session.start({ agent: createVerificationAgent() });
 

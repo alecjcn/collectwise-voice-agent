@@ -96,6 +96,50 @@ export function normalizeAccountNumber(accountNumber: string): string {
   return accountNumber.replace(/\D/g, '');
 }
 
+export const ACCOUNT_NUMBER_LENGTH = 6;
+export const PHONE_NUMBER_DIGITS = 10;
+
+export type AccountNumberInputCheck =
+  | { kind: 'ok'; digits: string }
+  | { kind: 'no_digits' }
+  | { kind: 'ssn_shaped' }
+  | { kind: 'wrong_length'; digitCount: number };
+
+/**
+ * Classify a spoken account-number input before any lookup is attempted.
+ * Speech transcription produces names, SSN digits, and mid-utterance
+ * fragments; only an input carrying exactly the right number of digits is
+ * worth checking against the database - anything else should be re-asked
+ * without consequence. Four digits is called out separately because it is
+ * the shape of an SSN, the most dangerous mix-up.
+ */
+export function checkAccountNumberInput(raw: string): AccountNumberInputCheck {
+  const digits = normalizeAccountNumber(raw);
+  if (digits.length === 0) return { kind: 'no_digits' };
+  if (digits.length === 4) return { kind: 'ssn_shaped' };
+  if (digits.length !== ACCOUNT_NUMBER_LENGTH) {
+    return { kind: 'wrong_length', digitCount: digits.length };
+  }
+  return { kind: 'ok', digits };
+}
+
+export type PhoneNumberInputCheck =
+  { kind: 'ok'; digits: string } | { kind: 'incomplete'; digitCount: number };
+
+/**
+ * Classify a spoken phone-number input before any lookup is attempted. A US
+ * phone number carries ten digits (a leading country code is tolerated);
+ * fewer digits means the caller was cut off or the transcript fragmented,
+ * and the full number should be re-asked without consequence.
+ */
+export function checkPhoneNumberInput(raw: string): PhoneNumberInputCheck {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length < PHONE_NUMBER_DIGITS) {
+    return { kind: 'incomplete', digitCount: digits.length };
+  }
+  return { kind: 'ok', digits: normalizePhone(raw) };
+}
+
 /** Reduce any spoken/stored phone format to its last 10 digits for comparison. */
 export function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, '').slice(-10);

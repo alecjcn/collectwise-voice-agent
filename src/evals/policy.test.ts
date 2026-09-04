@@ -3,6 +3,8 @@ import {
   MAX_PLAN_MONTHS,
   MAX_VERIFICATION_ATTEMPTS,
   MIN_SETTLEMENT_RATIO,
+  checkAccountNumberInput,
+  checkPhoneNumberInput,
   computeInstallmentPlan,
   computePlanForBudget,
   formatCents,
@@ -52,6 +54,34 @@ describe('computeInstallmentPlan', () => {
 
   it('rejects a non-positive balance', () => {
     expect(() => computeInstallmentPlan(0, 3)).toThrow();
+  });
+});
+
+describe('lookup input checks', () => {
+  it('accepts exactly six digits as an account number, in any spoken format', () => {
+    expect(checkAccountNumberInput('300101')).toEqual({ kind: 'ok', digits: '300101' });
+    expect(checkAccountNumberInput('3 0 0 1 0 1.')).toEqual({ kind: 'ok', digits: '300101' });
+  });
+
+  it('classifies malformed account-number input without ever matching', () => {
+    expect(checkAccountNumberInput('Maria Gonzalez')).toEqual({ kind: 'no_digits' });
+    expect(checkAccountNumberInput('7301')).toEqual({ kind: 'ssn_shaped' });
+    expect(checkAccountNumberInput('30010')).toEqual({ kind: 'wrong_length', digitCount: 5 });
+    expect(checkAccountNumberInput('3001011')).toEqual({ kind: 'wrong_length', digitCount: 7 });
+  });
+
+  it('accepts a complete phone number, tolerating separators and a country code', () => {
+    expect(checkPhoneNumberInput('555-010-4821')).toEqual({ kind: 'ok', digits: '5550104821' });
+    expect(checkPhoneNumberInput('+1 (555) 010-4821')).toEqual({
+      kind: 'ok',
+      digits: '5550104821',
+    });
+  });
+
+  it('classifies phone fragments as incomplete instead of looking them up', () => {
+    // Both real failures from a production call: literal words, then a fragment.
+    expect(checkPhoneNumberInput('My phone')).toEqual({ kind: 'incomplete', digitCount: 0 });
+    expect(checkPhoneNumberInput('01066')).toEqual({ kind: 'incomplete', digitCount: 5 });
   });
 });
 

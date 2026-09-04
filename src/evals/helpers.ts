@@ -128,7 +128,7 @@ export function markVerified(state: CallState, accountNumber = '300101'): Accoun
 
 /**
  * Attach a located (but unverified) account to the state, as caller-ID lookup
- * or the lookupAccount tool would. Pair it with
+ * or the lookup tools would. Pair it with
  * `createVerificationAgent({ locatedFirstName })` so the prompt matches the
  * state, exactly as main.ts wires the caller-ID flow.
  */

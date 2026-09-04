@@ -1,54 +1,86 @@
 import { llm, voice } from '@livekit/agents';
 import { z } from 'zod';
+import type { Account } from '../db/repository.ts';
 import { interruptionAwareLlmNode } from '../interruptions.ts';
-import { MAX_VERIFICATION_ATTEMPTS, normalizeAccountNumber } from '../policy.ts';
+import {
+  MAX_VERIFICATION_ATTEMPTS,
+  checkAccountNumberInput,
+  checkPhoneNumberInput,
+} from '../policy.ts';
 import { VERIFICATION_INSTRUCTIONS, VOICE_RULES, callerLocatedContext } from '../prompts.ts';
 import type { CallState } from '../state.ts';
 import { createEndCall, escalateToHuman, recordCallOutcome, traced } from '../tools/shared.ts';
 import { createNegotiationAgent } from './negotiationAgent.ts';
 
-const lookupAccount = llm.tool({
-  name: 'lookupAccount',
+/**
+ * Shared found-path for both lookup tools: cache the account on the call
+ * state and hand the model its next move. Only the name on file is revealed.
+ */
+function accountLocated(state: CallState, account: Account): string {
+  state.account = account;
+  return `Account located. The name on file is ${account.debtorName}. If the caller already introduced themselves by this name (first name is enough), do not re-confirm it. If they already spoke their SSN last four, call verifyIdentity with those digits right now; otherwise ask for them once.`;
+}
+
+/**
+ * Shared miss-path for both lookup tools: a complete, well-formed identifier
+ * matched nothing. Two such misses end the location attempt via escalation -
+ * malformed input never reaches this counter.
+ */
+function accountNotFound(state: CallState): string {
+  state.lookupFailures += 1;
+  if (state.lookupFailures >= 2) {
+    return 'No matching account was found again. Tell the caller you could not locate their account and that a specialist will follow up: call escalateToHuman with reason account_not_found, then recordCallOutcome with outcome account_not_found, then end_call.';
+  }
+  return 'No matching account was found. Ask the caller to double-check the number and try once more.';
+}
+
+const lookupAccountByAccountNumber = llm.tool({
+  name: 'lookupAccountByAccountNumber',
   description:
-    'Locate a consumer account by account number or by the phone number on file. Returns only the name on file so you can confirm you are speaking with the right person. Never returns balances or other details.',
+    "Locate a consumer account by the caller's six digit account number. Returns only the name on file so you can confirm you are speaking with the right person - never balances or other details. Only call with a complete six digit number: if the caller was cut off mid-number or gave a fragment, ask them to repeat the full number instead. Never pass a name or SSN digits.",
   parameters: z.object({
     accountNumber: z
       .string()
-      .optional()
-      .describe('The account number the caller provided, e.g. 300101'),
+      .describe('The complete six digit account number the caller spoke, e.g. 300101'),
+  }),
+  execute: traced('lookupAccountByAccountNumber', async ({ accountNumber }, { ctx }) => {
+    const state = ctx.userData;
+    // Shape guards: malformed input is re-asked at no cost to the caller -
+    // only a well-formed number that truly matches nothing burns a strike.
+    const check = checkAccountNumberInput(accountNumber);
+    if (check.kind === 'no_digits') {
+      return 'That contains no digits, so it is not an account number. Ask the caller for their six digit account number.';
+    }
+    if (check.kind === 'ssn_shaped') {
+      return 'Four digits is the shape of an SSN, not an account number. Never pass SSN digits here; ask the caller for their six digit account number.';
+    }
+    if (check.kind === 'wrong_length') {
+      return `That has ${check.digitCount} digits, but account numbers have six. The transcript may have cut the caller off - ask them to repeat the complete six digit account number.`;
+    }
+    const account = state.repo.findAccountByNumber(check.digits);
+    return account ? accountLocated(state, account) : accountNotFound(state);
+  }),
+});
+
+const lookupAccountByPhoneNumber = llm.tool({
+  name: 'lookupAccountByPhoneNumber',
+  description:
+    'Locate a consumer account by the full ten digit phone number on file. Returns only the name on file so you can confirm you are speaking with the right person - never balances or other details. Only call with a complete ten digit number: if the caller was cut off mid-number or gave a fragment, ask them to repeat the full number instead. Never pass a name or a description like "my phone".',
+  parameters: z.object({
     phoneNumber: z
       .string()
-      .optional()
-      .describe('The phone number the caller says is on the account'),
+      .describe('The complete ten digit phone number the caller spoke, e.g. 555 010 4821'),
   }),
-  execute: traced('lookupAccount', async ({ accountNumber, phoneNumber }, { ctx }) => {
+  execute: traced('lookupAccountByPhoneNumber', async ({ phoneNumber }, { ctx }) => {
     const state = ctx.userData;
-    if (!accountNumber && !phoneNumber) {
-      return 'Provide an account number or phone number to look up.';
+    // Shape guard: fragments are re-asked at no cost to the caller - only a
+    // complete number that truly matches nothing burns a strike.
+    const check = checkPhoneNumberInput(phoneNumber);
+    if (check.kind === 'incomplete') {
+      return `That has ${check.digitCount} digits, but a phone number has ten. The transcript may have cut the caller off - ask them to repeat the full ten digit phone number.`;
     }
-    // Shape-aware guard: reject non-identifiers without burning one of the
-    // two not-found strikes on model confusion. Account numbers are six
-    // digits; four digits is the shape of an SSN, and no digits is a name.
-    const accountDigits = accountNumber ? normalizeAccountNumber(accountNumber) : '';
-    if (accountNumber && accountDigits.length === 0) {
-      return 'That is not an account number. lookupAccount only takes an account number (like 300101) or a phone number - never a name. Ask the caller for one of those.';
-    }
-    if (accountNumber && accountDigits.length === 4) {
-      return 'Four digits is the shape of an SSN, not an account number - account numbers are six digits. Do not pass SSN digits to lookupAccount; ask the caller for their six digit account number or phone number.';
-    }
-    let account = accountNumber ? state.repo.findAccountByNumber(accountNumber) : undefined;
-    if (!account && phoneNumber) {
-      account = state.repo.findAccountByPhone(phoneNumber);
-    }
-    if (!account) {
-      state.lookupFailures += 1;
-      if (state.lookupFailures >= 2) {
-        return 'No matching account was found again. Offer to have a specialist follow up: use escalateToHuman with reason account_not_found, then recordCallOutcome with outcome account_not_found, then end_call.';
-      }
-      return 'No matching account was found. Ask the caller to double-check the number and try once more.';
-    }
-    state.account = account;
-    return `Account located. The name on file is ${account.debtorName}. If the caller already introduced themselves by this name (first name is enough), do not re-confirm it. If they already spoke their SSN last four, call verifyIdentity with those digits right now; otherwise ask for them once.`;
+    const account = state.repo.findAccountByPhone(check.digits);
+    return account ? accountLocated(state, account) : accountNotFound(state);
   }),
 });
 
@@ -66,7 +98,7 @@ const verifyIdentity = llm.tool({
     const state = ctx.userData;
     const account = state.account;
     if (!account) {
-      return 'No account has been located yet. Ask for the account number or the phone number on file and call lookupAccount - but remember the SSN digits the caller just gave, and verify with them immediately once the account is found instead of asking again.';
+      return 'No account has been located yet. Ask for the account number or the phone number on file and use the lookup tools - but remember the SSN digits the caller just gave, and verify with them immediately once the account is found instead of asking again.';
     }
     if (state.verified) {
       return 'Identity is already verified.';
@@ -132,6 +164,13 @@ export function createVerificationAgent(options?: {
     id: 'verification',
     instructions: `${VERIFICATION_INSTRUCTIONS}${context}\n\n${VOICE_RULES}`,
     llmNode: interruptionAwareLlmNode,
-    tools: [lookupAccount, verifyIdentity, escalateToHuman, recordCallOutcome, createEndCall()],
+    tools: [
+      lookupAccountByAccountNumber,
+      lookupAccountByPhoneNumber,
+      verifyIdentity,
+      escalateToHuman,
+      recordCallOutcome,
+      createEndCall(),
+    ],
   });
 }
