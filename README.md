@@ -9,33 +9,34 @@ Built with **Node.js / TypeScript**, **LiveKit Agents** (LiveKit Cloud + LiveKit
 and **SQLite** (Node's built-in `node:sqlite` — zero native dependencies, money stored as
 integer cents).
 
-## Try the deployed agent
+## Try it
 
-The agent is live on LiveKit Cloud (agent `CA_g34CJcavaJ6w`, project `collectwise`). There
-are three ways to reach it — all need a microphone; allow the mic when prompted.
+Two ways to talk to Nancy — both need a microphone.
 
-**1. Hosted demo page (no setup):**
+### 1. Hosted demo page — zero setup (recommended)
 
 **→ https://alecjcn.github.io/collectwise-voice-agent/demo/**
 
 A static page hosting LiveKit Cloud's [Agent Embed Widget](https://docs.livekit.io/agents/start/embed.md)
-([demo/index.html](demo/index.html), served via GitHub Pages). Click the widget button in
-the corner and talk to Nancy. Every visitor gets their own token, room, and session, so any
-number of evaluators can test concurrently with no shared state. The seed accounts to
-role-play with are listed right on the page.
+([demo/index.html](demo/index.html), served via GitHub Pages), wired to my deployed agent
+(`CA_g34CJcavaJ6w` on the `collectwise` project). Click the widget button and talk to Nancy.
+Every visitor gets their own token, room, and session, so any number of evaluators can test
+at once. The seed accounts and edge cases to try are listed right on the page.
 
-**2. A single-conversation link** (needs the repo + your LiveKit credentials, see Setup):
+### 2. Run your own copy
 
-```bash
-pnpm demo:link
-```
+Clone the repo and add your own LiveKit Cloud credentials to `.env.local`
+([Run your own copy](#run-your-own-copy) has the full steps), then reach the agent any of
+these ways — each runs against **your** project, not mine:
 
-This prints a `meet.livekit.io` URL whose join token targets a randomly named room; the
-deployed agent auto-dispatches into every newly created room. One link = one conversation:
-join tokens pin a single room name, so use a fresh link each time.
+- **`lk agent console`** — a terminal voice session against the agent running locally; no
+  browser or deploy needed. Quickest for iterating.
+- **`pnpm dev`, then `pnpm demo:link`** — run the agent locally and open a fresh
+  `meet.livekit.io` browser link (one link = one conversation).
+- **`lk agent deploy`** — deploy it to your own project, then point any LiveKit frontend at
+  it (the hosted widget, the Cloud Agent Console, or a `demo:link` URL).
 
-**3. The LiveKit Cloud Agent Console** (project members): cloud.livekit.io → collectwise →
-Agents → `CA_g34CJcavaJ6w` → Test in Console.
+To exercise the recognized-caller path, set `INCOMING_NUMBER` in `.env.local` (see Setup).
 
 Sample conversation to try (seed data):
 

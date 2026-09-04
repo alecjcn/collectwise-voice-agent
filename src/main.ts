@@ -40,7 +40,6 @@ function resolveIncomingNumber(participant: RemoteParticipant): string | undefin
  * @param userData - The call's state, exposed to every tool via `ctx.userData`.
  */
 function createSession(userData: CallState): voice.AgentSession<CallState> {
-
   // Would use a factory pattern and langfuse configs or configs set in trunk metadata to
   // determine the tts, stt, etc in production to avoid redeployment and enable faster testing
   return new voice.AgentSession<CallState>({

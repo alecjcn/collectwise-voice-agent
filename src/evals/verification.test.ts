@@ -381,7 +381,9 @@ describe('verification agent', () => {
       // A single misheard digit (300100 for 300101) must not escalate: the
       // caller gets more tries, and the correct number locates the account.
       await session
-        .run({ userInput: 'Hi, this is Maria. My account number is three zero zero one zero zero.' })
+        .run({
+          userInput: 'Hi, this is Maria. My account number is three zero zero one zero zero.',
+        })
         .wait();
       expect(state.repo.listEscalations(state.callId)).toHaveLength(0);
       expect(state.account).toBeUndefined();
