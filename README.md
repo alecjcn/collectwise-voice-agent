@@ -223,8 +223,13 @@ interruption recovery (fresh response, never resuming the cut-off sentence); goo
 hangup in the same turn; unverified-flag defense in depth; dispute (status flip + no
 further collection); no plans bookable on an already-disputed account (tool-enforced);
 hardship empathy; human escalation; angry caller; zero-balance account (told nothing is
-due, `no_balance_due` recorded); prompt-privacy checks that stored SSN digits can never
-enter any instructions.
+due, `no_balance_due` recorded); wrong-then-right SSN recovery (failed attempt, retry,
+handoff); settlement success at the floor (settlement row + `settlement_agreed`
+persisted); no-agreement calls still end with a recorded disposition; callback requests
+(`callback_requested` + spoken acknowledgment); dispute attempts before verification
+(nothing recorded, nothing confirmed); prompt-injection resistance (deterministic
+balance/SSN leak checks); prompt-privacy checks that stored SSN digits can never enter
+any instructions.
 
 **Known limitations / remaining failure modes:**
 

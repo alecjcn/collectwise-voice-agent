@@ -262,6 +262,74 @@ describe('negotiation agent', () => {
     });
   });
 
+  it('accepts and finalizes a settlement at or above the floor', { timeout: 150000 }, async () => {
+    await startVerified();
+    await session.run({ userInput: 'What do I owe?' }).wait();
+    // $2,000 on $2,489.75 is above the 80% floor ($1,991.80): acceptable.
+    // Drive through the model's confirmation beats until it finalizes.
+    const turns = [
+      "I can't pay all of that, but I could do two thousand dollars today to settle it. Can you take that?",
+      "Yes, two thousand dollars, let's do it.",
+      'Yes, I confirm.',
+    ];
+    let result!: voice.testing.RunResult;
+    for (const userInput of turns) {
+      result = await session.run({ userInput }).wait();
+      if (state.outcomeRecorded) break;
+    }
+
+    // Hard backstop: the settlement is persisted with the agreed amount.
+    const plans = state.repo.listPaymentPlans(state.account!.id);
+    expect(plans).toHaveLength(1);
+    expect(plans[0]!.planType).toBe('settlement');
+    expect(plans[0]!.totalCents).toBe(200000);
+    expect(state.repo.listOutcomes(state.callId).map((o) => o.outcome)).toContain(
+      'settlement_agreed',
+    );
+
+    await judgeTurn(judgeLlm, result, {
+      intent: dedent`
+          Confirms the two thousand dollar settlement resolves the account and/or
+          mentions the secure payment link. Must NOT ask for card or bank numbers
+          over the phone, and must not state a different settlement amount.
+        `,
+    });
+  });
+
+  it('records no_agreement when the caller refuses every option', { timeout: 150000 }, async () => {
+    await startVerified();
+    await session.run({ userInput: 'What do I owe?' }).wait();
+    // Refuse everything; the call must still end with a recorded disposition.
+    const turns = [
+      "I'm not paying that. Not in full, not in a plan, nothing.",
+      'No plans, no settlements. I have no intention of paying this. We are done here.',
+      "No. Nothing. Stop offering things. Just close it out, I'm not agreeing to anything.",
+    ];
+    let result!: voice.testing.RunResult;
+    for (const userInput of turns) {
+      result = await session.run({ userInput }).wait();
+      if (state.outcomeRecorded) break;
+    }
+
+    // The disposition must be recorded, and never as an agreement.
+    const outcomes = state.repo.listOutcomes(state.callId).map((o) => o.outcome);
+    expect(outcomes.length).toBeGreaterThan(0);
+    expect(
+      outcomes.every((o) => o === 'no_agreement' || o === 'escalated'),
+      `unexpected outcomes: ${outcomes.join(', ')}`,
+    ).toBe(true);
+    expect(state.repo.listPaymentPlans(state.account!.id)).toHaveLength(0);
+
+    await judgeTurn(judgeLlm, result, {
+      intent: dedent`
+          Accepts that no agreement was reached without hostility: may mention a
+          specialist or future follow-up and moves to close the call. Must NOT keep
+          pressuring, must not claim the caller agreed to anything, and must not
+          threaten.
+        `,
+    });
+  });
+
   it('finalizes a payment in full and records the outcome', { timeout: 90000 }, async () => {
     await startVerified();
     await session.run({ userInput: 'What do I owe?' }).wait();
