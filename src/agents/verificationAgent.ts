@@ -34,10 +34,10 @@ function accountLocated(state: CallState, account: Account): string {
  */
 function accountNotFound(state: CallState): string {
   state.lookupFailures += 1;
-  if (state.lookupFailures >= 2) {
-    return 'No matching account was found again. Tell the caller you could not locate their account and that a specialist will follow up: call escalateToHuman with reason account_not_found, then recordCallOutcome with outcome account_not_found, then end_call.';
+  if (state.lookupFailures >= 3) {
+    return 'Still no match after several tries. Tell the caller you could not locate their account and that a specialist will follow up: call escalateToHuman with reason account_not_found, then recordCallOutcome with outcome account_not_found, then end_call.';
   }
-  return 'No matching account was found. Ask the caller to double-check the number and try once more.';
+  return 'No matching account was found. Read the number you have back to the caller digit by digit and ask them to confirm or correct it, then try again - transcription often mishears a single digit.';
 }
 
 const lookupAccountByAccountNumber = llm.tool({
@@ -112,6 +112,13 @@ const verifyIdentity = llm.tool({
     if (state.verificationAttempts >= MAX_VERIFICATION_ATTEMPTS) {
       return 'No verification attempts remain. Tell the caller you cannot discuss the account today, then call end_call.';
     }
+    // A re-fire of the exact digits already tried is not a new attempt - it
+    // usually means the caller said something else (a question, filler) and the
+    // model re-submitted the previous digits. Never spend an attempt on it.
+    if (last4Ssn === state.lastVerificationDigits) {
+      return 'Those are the same digits already tried. Do not call verifyIdentity again until the caller says the last four digits anew; ask them to repeat the digits slowly.';
+    }
+    state.lastVerificationDigits = last4Ssn;
 
     // The comparison happens here, in code: the stored digits never reach the
     // model, so it can only ever relay match / no match. Names are deliberately

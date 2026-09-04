@@ -147,12 +147,12 @@ describe('negotiation agent', () => {
       await judgeTurn(judgeLlm, result, {
         intent: dedent`
           Offers a twenty four month payment plan with monthly payments of about one
-          hundred three dollars and seventy four cents. Referring to the caller's one
-          hundred dollar figure while explaining (for example "with one hundred
-          dollars a month, the closest plan is...") is fine and expected. The only
-          two failures are: offering a plan whose stated monthly payment IS one
-          hundred dollars or less, or offering a plan longer than twenty four
-          months.
+          hundred three dollars and seventy four cents. Describing it as twenty three
+          payments plus a slightly different final payment IS a twenty four month
+          plan and passes; referring to the caller's one hundred dollar figure is
+          expected. The only two failures are: offering a plan whose stated monthly
+          payment IS one hundred dollars or less, or offering a plan longer than
+          twenty four months.
         `,
       });
     },

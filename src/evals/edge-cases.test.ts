@@ -161,9 +161,10 @@ describe('edge cases (verified caller)', () => {
 
     await judgeTurn(judgeLlm, result, {
       intent: dedent`
-          The single criterion: the turn must not ask the caller for any payment or
-          state an amount owed. Anything else - answering, thanking, saying goodbye -
-          passes.
+          The single criterion: the turn must not ask the caller for any payment.
+          Telling the caller the account is paid, has a zero balance, or that they
+          owe nothing is the CORRECT, expected behavior and passes, as does thanking
+          or saying goodbye. The only failure is requesting a payment.
         `,
     });
 

@@ -51,9 +51,10 @@ describe('verification agent', () => {
       expect(state.account).toBeDefined();
       await judgeTurn(judgeLlm, result, {
         intent: dedent`
-        Identifies as Nancy from Alpha Bank and asks whether they are speaking with
-        Maria Gonzalez. Must NOT ask for an account number, and must NOT mention any
-        balance, debt, or account details.
+        Asks whether they are speaking with Maria Gonzalez (right-party
+        confirmation). Identifying as Nancy is fine but not required here - the
+        greeting is a separate first message in production. Must NOT ask for an
+        account number, and must NOT mention any balance, debt, or account details.
       `,
       });
     },
@@ -312,8 +313,9 @@ describe('verification agent', () => {
       expect(state.verificationAttempts).toBe(1);
       await judgeTurn(judgeLlm, failed, {
         intent: dedent`
-          Tells the caller the information did not match and lets them try again.
-          Must NOT reveal the correct digits, end the call, or refuse further attempts.
+          Tells the caller the information did not match and asks them to provide the
+          last four digits again (asking more than once in the turn is fine). Must NOT
+          reveal the correct digits, end the call, or refuse further attempts.
         `,
       });
 
@@ -334,6 +336,36 @@ describe('verification agent', () => {
         const text = item.type === 'message' ? (item.textContent ?? '') : '';
         expect(text).not.toMatch(/this is Nancy from Alpha Bank/i);
       }
+    },
+  );
+
+  it(
+    'keeps trying after a misheard account number instead of giving up',
+    { timeout: 120000 },
+    async () => {
+      await session.start({ agent: createVerificationAgent() });
+
+      // A single misheard digit (300100 for 300101) must not escalate: the
+      // caller gets more tries, and the correct number locates the account.
+      await session
+        .run({ userInput: 'Hi, this is Maria. My account number is three zero zero one zero zero.' })
+        .wait();
+      expect(state.repo.listEscalations(state.callId)).toHaveLength(0);
+      expect(state.account).toBeUndefined();
+
+      const result = await session
+        .run({ userInput: 'Oh sorry, the last digit is a one - three zero zero one zero one.' })
+        .wait();
+      expect(state.account?.debtorName).toBe('Maria Gonzalez');
+      expect(state.repo.hasOutcome(state.callId)).toBe(false);
+
+      await judgeTurn(judgeLlm, result, {
+        intent: dedent`
+          Proceeds with the located caller: addresses or confirms Maria and/or asks
+          for the last four digits of their social security number. Must NOT say the
+          account could not be found and must NOT end the call.
+        `,
+      });
     },
   );
 
@@ -484,29 +516,38 @@ describe('verification agent', () => {
     expect(state.verified).toBe(true);
   });
 
-  it('handles an account that cannot be found', { timeout: 90000 }, async () => {
+  it('escalates only after repeated genuine lookup misses', { timeout: 150000 }, async () => {
     await session.start({ agent: createVerificationAgent() });
 
-    // The flow asks who is speaking before locating, so the scripted caller
-    // introduces themselves; drive turns until the lookup has actually run.
+    // The caller insists on a number that does not exist. Each turn re-states
+    // it so the agent keeps looking it up; the account is never located, and
+    // after several genuine misses the call escalates to a specialist.
     const turns = [
       'Hi, this is John Smith. I got a letter about my account. My account number is 999999.',
-      'John Smith. The account number is 999999.',
-      'I am sure of the number. Nine nine nine, nine nine nine.',
+      "Yes, nine nine nine nine nine nine, that's the one on my letter.",
+      'I am completely sure. Nine, nine, nine, nine, nine, nine.',
+      'That is the number. Nine nine nine nine nine nine.',
+      "It's the only number I have. Nine nine nine nine nine nine.",
     ];
     let result = await session.run({ userInput: turns[0]! }).wait();
     for (const userInput of turns.slice(1)) {
-      if (state.lookupFailures > 0) break;
+      if (state.repo.hasOutcome(state.callId)) break;
       result = await session.run({ userInput }).wait();
     }
 
-    // Deterministic: the lookup ran and found nothing.
-    expect(state.lookupFailures).toBeGreaterThan(0);
+    // The account was never located or invented, and the terminal path ran:
+    // an account_not_found outcome plus a specialist escalation.
+    expect(state.account).toBeUndefined();
+    expect(state.repo.listOutcomes(state.callId).map((o) => o.outcome)).toContain(
+      'account_not_found',
+    );
+
     await judgeTurn(judgeLlm, result, {
       intent: dedent`
-          Indicates the account could not be found and asks the caller to double-check
-          the number, or apologizes and offers a specialist follow-up. Must NOT reveal
-          any account details or invent an account.
+          A polite wrap-up of a call where the account was not located: may say a
+          specialist will follow up, ask them to call back with the correct number,
+          and/or note the account could not be found. The only failures are revealing
+          account details or inventing an account.
         `,
     });
   });

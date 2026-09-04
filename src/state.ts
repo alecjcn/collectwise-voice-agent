@@ -23,6 +23,8 @@ export interface CallState {
   /** True only after a successful `verifyIdentity` call. */
   verified: boolean;
   verificationAttempts: number;
+  /** Digits of the most recent verify attempt, so a duplicate re-fire costs nothing. */
+  lastVerificationDigits?: string;
   lookupFailures: number;
   /** Below-floor settlement offers so far; after two, the floor may be disclosed. */
   settlementRejections: number;
