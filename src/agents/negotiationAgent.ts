@@ -328,7 +328,7 @@ const recordDispute = llm.tool({
       state.outcomeRecorded = true;
     }
     state.trace.event('outcome', { outcome: 'dispute', reason });
-    return 'Dispute recorded and collection paused. Tell the caller the account is marked as disputed, written validation of the debt will be mailed to them, and no collection will continue while it is reviewed. Then call end_call.';
+    return 'Dispute recorded and collection paused. Confirm this to the caller in ONE brief statement: the account is marked as disputed, written validation will be mailed, and no collection continues while it is reviewed - but never repeat any of those points you already told them. Then call end_call when they are done.';
   }),
 });
 

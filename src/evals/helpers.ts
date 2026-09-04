@@ -17,8 +17,8 @@ initializeLogger({ pretty: false, level: 'warn' });
 /** The model driving the agent under test — same default as production. */
 export const AGENT_MODEL = process.env.LLM_MODEL ?? 'openai/gpt-4.1-mini';
 
-/** The judge model used to grade agent responses in evals. */
-export const JUDGE_MODEL = 'openai/gpt-4.1-mini';
+/** The judge model; every eval intent is calibrated against this default. */
+export const JUDGE_MODEL = process.env.JUDGE_MODEL ?? 'openai/gpt-4.1-mini';
 
 /**
  * Everything the agent said during a run, in order. Skips content-free
@@ -82,7 +82,6 @@ export async function judgeTurn(
     chatCtx,
     toolCtx: [checkIntent],
     toolChoice: 'required',
-    extraKwargs: { temperature: 0 },
   });
   for await (const chunk of stream) {
     const toolCall = chunk.delta?.toolCalls?.[0];
