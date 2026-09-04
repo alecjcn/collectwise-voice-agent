@@ -57,8 +57,10 @@ function rowToAccount(row: any): Account {
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
- * All database access for the agent. Methods take validated inputs and return
- * plain typed objects; tools never touch SQL directly.
+ * The single data-access layer. Every method takes validated inputs, uses
+ * parameterized SQL only, and returns plain typed objects — tools and tests
+ * never touch SQL directly. One instance wraps the process-wide connection
+ * in production; tests construct one per case over `:memory:`.
  */
 export class Repository {
   private readonly db: DatabaseSync;
@@ -79,6 +81,12 @@ export class Repository {
     return accounts.find((a) => normalizeAccountNumber(a.accountNumber) === digits);
   }
 
+  /**
+   * Find an account by the phone number on file, comparing the last ten
+   * digits so stored and spoken formats ("+1 (555) 010-4821") match.
+   *
+   * @param phone - Any phone-number format; inputs under ten digits never match.
+   */
   findAccountByPhone(phone: string): Account | undefined {
     const digits = normalizePhone(phone);
     if (digits.length < 10) return undefined;
@@ -94,12 +102,23 @@ export class Repository {
     return row ? rowToAccount(row) : undefined;
   }
 
+  /**
+   * Append one row to the identity-check audit. Written by `verifyIdentity`
+   * before the in-call attempt counter changes, so an infrastructure failure
+   * can never leave an uncounted, unaudited attempt.
+   */
   recordVerificationAttempt(input: { callId: string; accountId: number; success: boolean }): void {
     this.db
       .prepare('INSERT INTO verification_attempts (call_id, account_id, success) VALUES (?, ?, ?)')
       .run(input.callId, input.accountId, input.success ? 1 : 0);
   }
 
+  /**
+   * Persist a committed resolution. Called only by `finalizeAgreement` after
+   * policy validation; the schema's CHECK constraints re-assert the limits.
+   *
+   * @returns The stored plan, with its generated id and `accepted` status.
+   */
   createPaymentPlan(input: {
     accountId: number;
     callId: string;
@@ -124,10 +143,16 @@ export class Repository {
     return { id: Number(result.lastInsertRowid), status: 'accepted', ...input };
   }
 
+  /** Set an account's status (e.g. `in_dispute` when a dispute is recorded). */
   updateAccountStatus(accountId: number, status: AccountStatus): void {
     this.db.prepare('UPDATE accounts SET status = ? WHERE id = ?').run(status, accountId);
   }
 
+  /**
+   * Record a call's terminal disposition. Callers (the outcome tools and the
+   * shutdown fallback) guard the one-outcome-per-call invariant via
+   * `CallState.outcomeRecorded`.
+   */
   recordOutcome(input: {
     callId: string;
     accountId?: number | undefined;
@@ -141,12 +166,18 @@ export class Repository {
       .run(input.callId, input.accountId ?? null, input.outcome, input.notes ?? null);
   }
 
+  /** Whether any disposition has been recorded for the call. */
   hasOutcome(callId: string): boolean {
     return (
       this.db.prepare('SELECT 1 FROM call_outcomes WHERE call_id = ?').get(callId) !== undefined
     );
   }
 
+  /**
+   * Queue a human follow-up work item. Distinct from an outcome: a call has
+   * exactly one disposition but may create any number of escalations, each
+   * carrying what the specialist needs for the promised callback.
+   */
   recordEscalation(input: {
     callId: string;
     accountId?: number | undefined;
@@ -196,11 +227,13 @@ export class Repository {
   }
   /* eslint-enable @typescript-eslint/no-explicit-any */
 
+  /** Number of accounts on file; used by seeding to detect an empty database. */
   countAccounts(): number {
     const row = this.db.prepare('SELECT COUNT(*) AS n FROM accounts').get() as { n: number };
     return Number(row.n);
   }
 
+  /** Insert one account (seed data only). @returns The row with its generated id. */
   insertAccount(input: Omit<Account, 'id'>): Account {
     const result = this.db
       .prepare(

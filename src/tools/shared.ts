@@ -3,8 +3,13 @@ import { z } from 'zod';
 import type { CallState } from '../state.ts';
 
 /**
- * Wrap a tool's execute function so every call, result, error, and handoff is
- * automatically written to the per-call trace.
+ * Wrap a tool's execute function so every invocation is written to the
+ * per-call trace: `tool_call` before execution, then `tool_result`,
+ * `handoff` (for `llm.handoff` returns), or `tool_error`.
+ *
+ * @param name - Tool name recorded on every event.
+ * @param execute - The tool's execute function, unchanged in behavior.
+ * @returns A drop-in replacement execute with tracing attached.
  */
 export function traced<A, R>(
   name: string,
@@ -31,13 +36,17 @@ export function traced<A, R>(
 }
 
 /**
- * Lets the agent hang up gracefully: the SDK's prebuilt tool waits for the
- * goodbye to finish playing, shuts the session down, and deletes the room.
+ * Build the hang-up tool from the SDK's prebuilt `EndCallTool`. Per its
+ * contract, calling `end_call` generates the one goodbye (from
+ * `endInstructions`), waits for playout to finish, then shuts the session
+ * down and deletes the room - so no prompt ever composes a farewell.
+ *
+ * @returns A per-agent toolset instance; each agent factory calls this so
+ * no tool state is shared across concurrent calls.
  *
  * TODO(POC): a production build would warm-transfer escalations to a live
  * agent (SIP REFER, or adding a human participant to the room) instead of
- * promising a callback and hanging up. For this prototype, ending the room is
- * the whole exit path.
+ * promising a callback and hanging up.
  */
 export function createEndCall() {
   return beta.createEndCallTool<CallState>({

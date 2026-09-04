@@ -2,6 +2,19 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
+/**
+ * Schema, by role:
+ *
+ * - `accounts` — the book of business (one row per placed account).
+ * - `verification_attempts` — append-only audit of every identity check.
+ *   The 3-attempt cap is enforced in call state; this table is the durable
+ *   record (repeated failures against an account are a fraud signal).
+ * - `payment_plans` — committed resolutions (full payment, installments,
+ *   settlements). The 1–24 installment CHECK backs `policy.ts` in depth.
+ * - `call_outcomes` — exactly one terminal disposition per call.
+ * - `escalations` — zero or more human follow-up work items per call, each
+ *   with the reason and context a specialist needs for the callback.
+ */
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS accounts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,11 +75,15 @@ CREATE INDEX IF NOT EXISTS idx_outcomes_call ON call_outcomes(call_id);
 `;
 
 /**
- * Open (creating directories and schema as needed) a SQLite database.
+ * Open a SQLite database, creating parent directories and the schema as
+ * needed. Called once per process (`main.ts`) and once per test for
+ * `:memory:` isolation.
  *
- * There are no migrations (POC): "IF NOT EXISTS" leaves an existing file's
- * tables untouched, so after any SCHEMA change, delete the local database
- * file — it reseeds automatically on the next start.
+ * @param path - Filesystem path for the database, or `:memory:`.
+ * @returns An open connection with foreign keys enabled and all tables
+ * ensured. There are no migrations (prototype scope): `IF NOT EXISTS`
+ * leaves an existing file untouched, so after a schema change delete the
+ * local file — it reseeds automatically on the next start.
  */
 export function openDb(path: string): DatabaseSync {
   if (path !== ':memory:') {

@@ -14,7 +14,10 @@ import { createNegotiationAgent } from './negotiationAgent.ts';
 
 /**
  * Shared found-path for both lookup tools: cache the account on the call
- * state and hand the model its next move. Only the name on file is revealed.
+ * state and hand the model its next move.
+ *
+ * @param account - The matched row; only the name on file reaches the model.
+ * @returns The tool result string steering right-party confirmation.
  */
 function accountLocated(state: CallState, account: Account): string {
   state.account = account;
@@ -22,9 +25,12 @@ function accountLocated(state: CallState, account: Account): string {
 }
 
 /**
- * Shared miss-path for both lookup tools: a complete, well-formed identifier
- * matched nothing. Two such misses end the location attempt via escalation -
- * malformed input never reaches this counter.
+ * Shared miss-path for both lookup tools, reached only by a complete,
+ * well-formed identifier that matched nothing - malformed input is re-asked
+ * upstream and never touches this counter.
+ *
+ * @returns A retry prompt on the first miss; on the second, the
+ * escalate-and-end instruction that closes the location attempt.
  */
 function accountNotFound(state: CallState): string {
   state.lookupFailures += 1;

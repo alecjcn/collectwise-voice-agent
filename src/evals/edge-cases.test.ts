@@ -2,7 +2,14 @@ import { dedent, inference, initializeLogger, voice } from '@livekit/agents';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createNegotiationAgent } from '../agents/negotiationAgent.ts';
 import type { CallState } from '../state.ts';
-import { AGENT_MODEL, JUDGE_MODEL, createTestState, judgeTurn, markVerified } from './helpers.ts';
+import {
+  AGENT_MODEL,
+  JUDGE_MODEL,
+  createTestState,
+  judgeTurn,
+  markVerified,
+  spokenTranscript,
+} from './helpers.ts';
 
 initializeLogger({ pretty: false, level: 'warn' });
 
@@ -148,11 +155,7 @@ describe('edge cases (verified caller)', () => {
 
     // The caller must hear that nothing is due - in the opening summary or the
     // answer. Checked across the whole call so far, deterministically.
-    const spoken = session.history.items
-      .filter((item) => item.type === 'message' && item.role === 'assistant')
-      .map((item) => ('textContent' in item ? (item.textContent ?? '') : ''))
-      .join('\n');
-    expect(spoken).toMatch(
+    expect(spokenTranscript(session)).toMatch(
       /no (outstanding |remaining )?balance|zero balance|paid in full|nothing (is )?(due|owed)|no payment is (due|needed|required)|do(n't| not) owe/i,
     );
 

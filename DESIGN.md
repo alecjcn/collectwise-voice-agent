@@ -83,6 +83,18 @@ Tables (`src/db/db.ts`):
 Repository functions (`src/db/repository.ts`) take validated inputs and return plain typed
 objects; the schema's CHECK constraints are a last line of defense behind `policy.ts`.
 
+Two deliberate distinctions in the schema:
+
+- **`verification_attempts` is audit, not mechanism.** The 3-attempt cap is enforced by
+  the in-call counter; the table is the durable record of every identity check, pass or
+  fail — in collections, failed access attempts against an account are exactly what you
+  need to reconstruct later (and a fraud signal worth keeping).
+- **Outcomes and escalations differ in cardinality and consumer.** `call_outcomes` is
+  analytics/state: exactly one terminal disposition per call. `escalations` is a work
+  queue: zero or more human follow-up items per call, each carrying the reason and
+  context a specialist needs for the promised callback. A hardship call can end
+  `escalated` _and_ create an escalation row — related, never duplicates.
+
 ## Policy (pure, unit-tested)
 
 `src/policy.ts`: `computeInstallmentPlan` (ceil per-month, last payment absorbs the remainder so

@@ -32,6 +32,11 @@ export class Tracer {
   private readonly logger: ReturnType<typeof log>;
   private readonly filePath?: string;
 
+  /**
+   * @param callId - Stable identifier binding every event to one call.
+   * @param options.dir - When set, events are also appended to
+   * `<dir>/trace-<callId>.jsonl`; omitted in tests to keep them silent.
+   */
   constructor(callId: string, options?: { dir?: string }) {
     this.callId = callId;
     this.logger = log().child({ callId });
@@ -41,7 +46,14 @@ export class Tracer {
     }
   }
 
-  /** Record one semantic event. Must never throw into a live call. */
+  /**
+   * Record one semantic event.
+   *
+   * @param type - The event's semantic type (see {@link TraceEventType}).
+   * @param data - Structured payload; merged into the log line and JSONL row.
+   * File-append failures are downgraded to warnings - tracing must never
+   * throw into a live call.
+   */
   event(type: TraceEventType, data: Record<string, unknown> = {}): void {
     this.logger.info({ trace: type, ...data }, `[trace] ${type}`);
     if (!this.filePath) return;

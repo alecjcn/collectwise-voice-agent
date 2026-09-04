@@ -13,6 +13,16 @@ export interface InstallmentPlan {
   totalCents: number;
 }
 
+/**
+ * Compute an equal-installment plan over a balance. The per-month amount is
+ * rounded up and the final payment absorbs the remainder, so the payments
+ * always sum exactly to the balance.
+ *
+ * @param balanceCents - Balance to divide, in integer cents (> 0).
+ * @param months - Number of monthly payments (1 to MAX_PLAN_MONTHS).
+ * @throws If either argument is out of range - callers surface the message
+ * to the model as a policy error to relay.
+ */
 export function computeInstallmentPlan(balanceCents: number, months: number): InstallmentPlan {
   if (!Number.isInteger(balanceCents) || balanceCents <= 0) {
     throw new Error('Balance must be a positive integer number of cents.');
@@ -60,6 +70,7 @@ export function computePlanForBudget(
   };
 }
 
+/** The lowest acceptable settlement for a balance: 80%, rounded up. */
 export function minSettlementCents(balanceCents: number): number {
   return Math.ceil(balanceCents * MIN_SETTLEMENT_RATIO);
 }
@@ -70,6 +81,15 @@ export interface SettlementValidation {
   reason?: string;
 }
 
+/**
+ * Validate a lump-sum settlement offer against the floor.
+ *
+ * @param balanceCents - Current account balance in integer cents.
+ * @param offerCents - The caller's offer in integer cents.
+ * @returns Whether the offer is acceptable, the floor (`minCents`), and a
+ * reason when it is not - the floor is included even on rejection so the
+ * disclosure decision stays with the calling tool.
+ */
 export function validateSettlementOffer(
   balanceCents: number,
   offerCents: number,
@@ -145,13 +165,17 @@ export function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, '').slice(-10);
 }
 
-/** Mask a phone number for logs, keeping only the last 4 digits. */
+/**
+ * Mask a phone number for logs and traces, preserving formatting but keeping
+ * only the last four digits (`+*******4821`).
+ */
 export function maskPhone(phone: string): string {
   const total = phone.replace(/\D/g, '').length;
   let seen = 0;
   return phone.replace(/\d/g, (digit) => (++seen <= total - 4 ? '*' : digit));
 }
 
+/** Format integer cents as a US dollar string (`248975` → `"$2,489.75"`). */
 export function formatCents(cents: number): string {
   return (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }

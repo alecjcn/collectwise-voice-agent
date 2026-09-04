@@ -100,6 +100,18 @@ export async function judgeTurn(
   }
 }
 
+/**
+ * Everything the agent has said in the session so far, joined in order.
+ * For deterministic transcript assertions that span multiple turns (for
+ * example: "the caller was told nothing is due at some point in the call").
+ */
+export function spokenTranscript(session: voice.AgentSession<CallState>): string {
+  return session.history.items
+    .filter((item) => item.type === 'message' && item.role === 'assistant')
+    .map((item) => ('textContent' in item ? (item.textContent ?? '') : ''))
+    .join('\n');
+}
+
 let testCounter = 0;
 
 /**

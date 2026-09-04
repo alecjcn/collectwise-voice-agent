@@ -3,7 +3,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createVerificationAgent } from '../agents/verificationAgent.ts';
 import type { CallState } from '../state.ts';
 import { locateCallerByPhone } from '../state.ts';
-import { AGENT_MODEL, JUDGE_MODEL, createTestState, judgeTurn, markLocated } from './helpers.ts';
+import {
+  AGENT_MODEL,
+  JUDGE_MODEL,
+  createTestState,
+  judgeTurn,
+  markLocated,
+  spokenTranscript,
+} from './helpers.ts';
 
 initializeLogger({ pretty: false, level: 'warn' });
 
@@ -333,11 +340,7 @@ describe('verification agent', () => {
     );
     // The caller must hear the callback acknowledged somewhere in the call
     // (the model may say it a turn before recording it and then wrap up).
-    const spoken = session.history.items
-      .filter((item) => item.type === 'message' && item.role === 'assistant')
-      .map((item) => ('textContent' in item ? (item.textContent ?? '') : ''))
-      .join('\n');
-    expect(spoken).toMatch(
+    expect(spokenTranscript(session)).toMatch(
       /call( you)? back|callback|reach( back)? out|follow up|get back to you/i,
     );
 

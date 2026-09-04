@@ -30,7 +30,15 @@ function resolveIncomingNumber(participant: RemoteParticipant): string | undefin
   return sipNumber ?? process.env.INCOMING_NUMBER;
 }
 
-/** Voice pipeline on LiveKit Inference; LLM_MODEL and STT_MODEL env vars override. */
+/**
+ * Build the voice session for one call: STT, LLM, and TTS on LiveKit
+ * Inference (the `*_MODEL` / `TTS_VOICE` env vars override each stage).
+ * Turn handling favors correctness over snappiness - preemptive generation
+ * is off and endpointing gets an extra beat so spoken numbers (accounts,
+ * amounts) coalesce before a turn commits.
+ *
+ * @param userData - The call's state, exposed to every tool via `ctx.userData`.
+ */
 function createSession(userData: CallState): voice.AgentSession<CallState> {
   return new voice.AgentSession<CallState>({
     userData,
@@ -58,6 +66,12 @@ function createSession(userData: CallState): voice.AgentSession<CallState> {
   });
 }
 
+/**
+ * Per-call entrypoint. Lifecycle: create the trace and call state → wire
+ * session events (transcript mirroring, close → room teardown) → register
+ * the outcome fallback → resolve caller ID → start in the unverified
+ * verification agent → speak the greeting.
+ */
 export default defineAgent({
   entry: async (ctx) => {
     const callId = `${ctx.room.name ?? 'room'}-${Date.now()}`;

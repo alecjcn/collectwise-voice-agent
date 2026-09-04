@@ -22,6 +22,15 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
   closed: 'closed',
 };
 
+/**
+ * Render the account as prompt-ready context. This is the only place account
+ * details are ever written into text the model can see; it is injected into
+ * the agent's instructions at handoff and returned by `getAccountDetails`.
+ * Delinquent accounts include the precomputed 3-month opening plan;
+ * zero-balance and disputed accounts include their no-collection rules.
+ *
+ * @param account - The verified caller's account row.
+ */
 function describeAccount(account: Account): string {
   const statusText = STATUS_DESCRIPTIONS[account.status] ?? account.status;
   if (account.balanceCents <= 0) {
@@ -72,7 +81,14 @@ function refuseIfDisputed(account: Account): string | undefined {
   return undefined;
 }
 
-/** Returns the verified account, an unverified marker, or an error string. */
+/**
+ * Gate for every account-touching tool: re-reads the account from the
+ * database so mid-call changes (a dispute, a status flip) are always seen.
+ *
+ * @returns `{ account }` when the session is verified and the row loads,
+ * `{ unverified }` when the verified flag is not set (callers hand control
+ * back to verification), or `{ error }` with a relayable message.
+ */
 function requireVerifiedAccount(state: CallState) {
   if (!state.verified || !state.account) {
     return { unverified: true as const };
@@ -98,7 +114,12 @@ const getAccountDetails = llm.tool({
   }),
 });
 
-/** Speakable summary of a computed plan, shared by both proposal paths. */
+/**
+ * Render a computed plan as a speakable summary, shared by both
+ * `proposePaymentPlan` paths (plan length and monthly budget).
+ *
+ * @param plan - A plan already validated by `policy.ts`.
+ */
 function describePlan(plan: InstallmentPlan): string {
   if (plan.months === 1) {
     return `a single payment of ${formatCents(plan.totalCents)}`;

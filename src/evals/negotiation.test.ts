@@ -322,10 +322,10 @@ describe('negotiation agent', () => {
 
     await judgeTurn(judgeLlm, result, {
       intent: dedent`
-          Accepts that no agreement was reached without hostility: may mention a
-          specialist or future follow-up and moves to close the call. Must NOT keep
-          pressuring, must not claim the caller agreed to anything, and must not
-          threaten.
+          The only failures are: continued pressure to pay, hostile or threatening
+          language, or claiming the caller agreed to something. Everything else
+          passes, explicitly including a brief polite close such as thanking the
+          caller for their time.
         `,
     });
   });

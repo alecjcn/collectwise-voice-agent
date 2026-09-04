@@ -16,6 +16,10 @@ export const INTERRUPTION_MARKER =
  * the truncation so the model responds to the caller instead of finishing
  * the sentence. Interrupted items are replaced, never mutated: `copy()` is
  * shallow, and the marker must not leak into the real conversation history.
+ *
+ * @param chatCtx - The chat context for one LLM request.
+ * @returns A copy in which every interrupted assistant message carries the
+ * marker; untouched items are shared by reference with the original.
  */
 export function markInterruptions(chatCtx: llm.ChatContext): llm.ChatContext {
   const copy = chatCtx.copy();

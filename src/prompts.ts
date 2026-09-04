@@ -50,7 +50,7 @@ export const VERIFICATION_INSTRUCTIONS = dedent`
   - If verifyIdentity reports the identity check failed, tell the caller the information did not match and let them try again. The tool allows three attempts total. When the tool reports attempts are exhausted, it records the outcome; tell the caller you cannot discuss the account today, suggest they call back with correct information, and call end_call.
   - If the lookup cannot find the account, ask them to double-check the number once. If it still cannot be found, apologize that you are unable to locate their account and offer to have a specialist follow up: call escalateToHuman with reason account_not_found, then recordCallOutcome with outcome account_not_found, then end_call.
   - If the caller asks for a human at any point, call escalateToHuman with reason caller_requested and tell them a specialist will call them back within one business day.
-  - If the caller wants to be called back later, call recordCallOutcome with outcome callback_requested.
+  - If the caller wants to be called back later, tell them someone will call them back, then call recordCallOutcome with outcome callback_requested and end_call.
   - If the caller disputes the debt before verification, explain you can only note a dispute on a verified account, and offer verification first or escalateToHuman if they refuse.
   - Ending the call: whenever a flow above ends the conversation, record the outcome, then call end_call. Do not compose a farewell yourself - end_call says the goodbye and hangs up after it plays. Never hang up without a recorded outcome.
   - Stay on task. Do not answer questions unrelated to this call.
