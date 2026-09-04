@@ -121,9 +121,11 @@ describe('negotiation agent', () => {
       await judgeTurn(judgeLlm, result, {
         intent: dedent`
           Offers a seventeen month payment plan with monthly payments of about one
-          hundred forty six dollars (roughly $146.46). Must not offer a plan whose
-          monthly payment exceeds one hundred fifty dollars, and must not offer a
-          plan longer than twenty four months.
+          hundred forty six dollars (roughly $146.46). Describing it as sixteen
+          monthly payments plus a slightly different final payment IS a seventeen
+          month plan and passes. The only failures are: offering a plan whose
+          monthly payment exceeds one hundred fifty dollars, or offering a plan
+          longer than twenty four months.
         `,
       });
     },

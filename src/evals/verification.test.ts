@@ -323,6 +323,17 @@ describe('verification agent', () => {
       expect(state.verified).toBe(true);
       expect(state.verificationAttempts).toBe(2);
       result.expect.containsAgentHandoff();
+
+      // Instruction-replay guard: observed in production, the model once
+      // appended a fresh greeting to its wrong-SSN retry reply. After the
+      // first message of a call, the greeting must never recur.
+      const replies = session.history.items.filter(
+        (item) => item.type === 'message' && item.role === 'assistant',
+      );
+      for (const item of replies.slice(1)) {
+        const text = item.type === 'message' ? (item.textContent ?? '') : '';
+        expect(text).not.toMatch(/this is Nancy from Alpha Bank/i);
+      }
     },
   );
 

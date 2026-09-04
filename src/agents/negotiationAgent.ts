@@ -167,7 +167,7 @@ const proposePaymentPlan = llm.tool({
       if (!withinBudget) {
         return `${formatCents(budgetCents)} per month would take more than the 24 month maximum. The closest allowed plan is ${describePlan(plan)} - slightly above their number. Offer that plan and ask if it is manageable; never promise more than 24 months or a lower payment.`;
       }
-      return `The shortest plan within ${formatCents(budgetCents)} per month is ${describePlan(plan)}. This is only a proposal; call finalizeAgreement if the caller accepts.`;
+      return `The shortest plan within ${formatCents(budgetCents)} per month is ${describePlan(plan)}. When offering it, connect it to their number in one short clause: the payment comes out a little under the ${formatCents(budgetCents)} they mentioned because this is the shortest plan that fits within it. This is only a proposal; call finalizeAgreement if the caller accepts.`;
     }
 
     // Caller asked for a plan length directly.
